@@ -1901,3 +1901,117 @@ body {
     letter-spacing: .06em;
   }
 }
+
+.building-slots .occupied {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 2px;
+}
+
+.building-slots .occupied strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+}
+
+.building-slots .occupied small {
+  color: #ffe9a4;
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.building-slots .occupied button {
+  justify-self: center;
+  margin-top: 2px;
+  padding: 2px 5px;
+  color: #173522;
+  background: #f1d36a;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 6px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.building-slots .occupied button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.hand-heading {
+  gap: 8px;
+}
+
+.warehouse-chips {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.warehouse-chips > small {
+  color: #d9bd59;
+  font-size: 7px;
+}
+
+.warehouse-chips button,
+.warehouse-chips i {
+  max-width: 130px;
+  overflow: hidden;
+  padding: 3px 6px;
+  color: #173522;
+  background: #e9cd68;
+  border: 0;
+  border-radius: 2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.warehouse-chips button {
+  cursor: pointer;
+}
+
+.warehouse-chips button:disabled {
+  color: #d9e1d8;
+  background: #3e5d47;
+  cursor: default;
+}
+
+.card-actions button:disabled {
+  color: #8a9b8d;
+  background: rgba(0,0,0,.2);
+  border-color: #506557;
+  cursor: not-allowed;
+}
+
+.game-toast {
+  position: fixed;
+  z-index: 80;
+  top: 76px;
+  left: 50%;
+  max-width: min(640px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  color: #173522;
+  background: #f3d56a;
+  border: 2px solid #fff0ae;
+  box-shadow: 0 8px 25px rgba(0,0,0,.35);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 900;
+  animation: toast-enter .2s ease-out;
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}

@@ -51,6 +51,9 @@ type Game = {
   objective: Record<Crop, number>;
   buildings: string[];
   irrigationUsed: boolean;
+  cisternWater: number;
+  warehouse: ResourceCard[];
+  compost?: Crop;
   weedsActive: boolean;
   pendingPlague?: string;
   lastPlague?: string;
@@ -371,6 +374,8 @@ function startGame(players: number, mode: "normal" | "especial"): Game {
     objective: objectiveFor(players),
     buildings: [],
     irrigationUsed: false,
+    cisternWater: 0,
+    warehouse: [],
     weedsActive: false,
     status: "playing",
     log: [
@@ -401,6 +406,7 @@ export default function Home() {
   const [exchangeIndex, setExchangeIndex] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [hasSave, setHasSave] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     setHasSave(Boolean(localStorage.getItem("maldita-cosecha-save")));
@@ -412,6 +418,12 @@ export default function Home() {
       setHasSave(true);
     }
   }, [game]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     function handleKeyboard(event: KeyboardEvent) {
@@ -439,14 +451,30 @@ export default function Home() {
       const index = game.hands[player].findIndex(
         (card) => card.kind === "defensa" && card.counters === game.pendingPlague,
       );
-      if (index >= 0) return { player, index, card: game.hands[player][index] };
+      if (index >= 0) return { player, index, card: game.hands[player][index], warehouse: false };
+    }
+    const warehouseIndex = game.warehouse.findIndex(
+      (card) => card.kind === "defensa" && card.counters === game.pendingPlague,
+    );
+    if (warehouseIndex >= 0) {
+      return {
+        player: -1,
+        index: warehouseIndex,
+        card: game.warehouse[warehouseIndex],
+        warehouse: true,
+      };
     }
     return null;
   }, [game]);
 
   function resume() {
     const raw = localStorage.getItem("maldita-cosecha-save");
-    if (raw) setGame(JSON.parse(raw) as Game);
+    if (raw) {
+      const saved = JSON.parse(raw) as Game;
+      saved.cisternWater ??= 0;
+      saved.warehouse ??= [];
+      setGame(saved);
+    }
   }
 
   function begin() {
@@ -491,11 +519,22 @@ export default function Home() {
 
     if (action === "plantar") {
       if (plot.plant || plot.damaged || plot.blocked || plot.drought > 0) return;
-      if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
-      plot.plant = next.plantDeck.shift();
+      const recovered = next.compost;
+      if (recovered) {
+        plot.plant = recovered;
+        next.compost = undefined;
+      } else {
+        if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
+        plot.plant = next.plantDeck.shift();
+      }
       plot.water = 0;
       plot.required = 1;
-      concludeAction(next, `Jugador ${game.activePlayer + 1} plantó en el terreno ${index + 1}.`);
+      concludeAction(
+        next,
+        recovered
+          ? `Jugador ${game.activePlayer + 1} recuperó ${recovered} de la Compostera y la plantó.`
+          : `Jugador ${game.activePlayer + 1} plantó en el terreno ${index + 1}.`,
+      );
       return;
     }
 
@@ -566,36 +605,89 @@ export default function Home() {
     fillMarket(next);
   }
 
-  function playCard(index: number) {
-    if (!game || game.pendingPlague || game.status !== "playing") return;
-    const card = game.hands[game.activePlayer][index];
-    if (!card || card.kind === "defensa") return;
-    const next = cloneGame(game);
-
-    if (card.kind === "construcción") {
-      if (next.buildings.length >= 4) return;
-      next.buildings.push(card.name);
-      if (card.name === "Invernadero") {
-        const target = next.field.findIndex((plot) => plot.plant && !plot.greenhouse);
-        next.field[target >= 0 ? target : 4].greenhouse = true;
-      }
-      replaceHandCard(next, next.activePlayer, index);
-      concludeAction(next, `Jugador ${game.activePlayer + 1} construyó ${card.name}.`);
-      return;
+  function cardAvailability(card: ResourceCard) {
+    if (!game || game.pendingPlague || game.status !== "playing") {
+      return { enabled: false, reason: "No se puede usar en este momento." };
     }
+    if (card.kind === "defensa") {
+      return {
+        enabled: false,
+        reason: `Reacción automática: se habilita cuando aparece ${card.counters}.`,
+      };
+    }
+    if (card.kind === "construcción" && game.buildings.length >= 4) {
+      return { enabled: false, reason: "Los cuatro espacios de construcción están ocupados." };
+    }
+    if (card.name === "Cosecha Mágica" && !game.field.some((plot) => plot.plant)) {
+      return { enabled: false, reason: "No hay plantas en el campo para cosechar." };
+    }
+    if (
+      card.name === "Lluvia" &&
+      !game.field.some(
+        (plot) => plot.drought > 0 || (plot.plant && plot.water < plot.required),
+      )
+    ) {
+      return { enabled: false, reason: "No hay Sequía ni plantas pendientes de riego." };
+    }
+    if (
+      card.name === "Tractor" &&
+      !game.field.some(
+        (plot) => !plot.plant && !plot.damaged && !plot.blocked && plot.drought === 0,
+      )
+    ) {
+      return { enabled: false, reason: "No hay terrenos libres y habilitados." };
+    }
+    if (card.name === "Metamorfosis") {
+      const target = [...CROPS].sort(
+        (a, b) =>
+          game.objective[b] - totalCrop(game, b) - (game.objective[a] - totalCrop(game, a)),
+      )[0];
+      const hasConvertibleCrop = CROPS.some(
+        (crop) => crop !== target && game.harvest[crop] > 0,
+      );
+      if (!hasConvertibleCrop || totalCrop(game, target) >= game.objective[target]) {
+        return { enabled: false, reason: "Hace falta cosecha disponible y un cultivo pendiente." };
+      }
+    }
+    if (card.name === "Pronóstico Meteorológico" && !game.plagueDeck.length) {
+      return { enabled: false, reason: "No quedan Plagas para consultar." };
+    }
+    return { enabled: true, reason: card.kind === "construcción" ? "Construir" : "Usar ahora" };
+  }
 
+  function installBuilding(next: Game, card: ResourceCard) {
+    next.buildings.push(card.name);
+    if (card.name === "Invernadero") {
+      const target = next.field.findIndex((plot) => plot.plant && !plot.greenhouse);
+      next.field[target >= 0 ? target : 4].greenhouse = true;
+    }
+  }
+
+  function applyImmediate(next: Game, card: ResourceCard) {
     if (card.name === "Cosecha Mágica") {
+      let amount = 0;
       next.field.forEach((plot, plotIndex) => {
         if (!plot.plant) return;
         next.harvest[plot.plant] += 1;
+        amount += 1;
         next.field[plotIndex] = { ...plot, plant: undefined, water: 0, required: 1, crow: false };
       });
-    } else if (card.name === "Lluvia") {
+      return `Cosecha Mágica recogió ${amount} ${amount === 1 ? "planta" : "plantas"}.`;
+    }
+    if (card.name === "Lluvia") {
+      let watered = 0;
+      let drought = 0;
       next.field.forEach((plot) => {
+        drought += plot.drought;
         plot.drought = 0;
-        if (plot.plant) plot.water = plot.required;
+        if (plot.plant && plot.water < plot.required) {
+          plot.water = plot.required;
+          watered += 1;
+        }
       });
-    } else if (card.name === "Tractor") {
+      return `Lluvia regó ${watered} plantas y retiró ${drought} fichas de Sequía.`;
+    }
+    if (card.name === "Tractor") {
       const rows = [0, 1, 2].map((row) => ({
         row,
         free: [0, 1, 2].filter((col) => {
@@ -604,30 +696,117 @@ export default function Home() {
         }).length,
       }));
       const best = rows.sort((a, b) => b.free - a.free)[0].row;
+      let planted = 0;
       [0, 1, 2].forEach((col) => {
         const plot = next.field[best * 3 + col];
         if (!plot.plant && !plot.damaged && !plot.blocked && !plot.drought) {
+          if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
           plot.plant = next.plantDeck.shift();
+          planted += 1;
         }
       });
-    } else if (card.name === "Metamorfosis") {
-      const source = [...CROPS].sort((a, b) => next.harvest[b] - next.harvest[a])[0];
+      return `Tractor plantó ${planted} terrenos en la fila ${best + 1}.`;
+    }
+    if (card.name === "Metamorfosis") {
       const target = [...CROPS].sort(
         (a, b) =>
           next.objective[b] - totalCrop(next, b) - (next.objective[a] - totalCrop(next, a)),
       )[0];
-      const amount = Math.min(3, next.harvest[source], Math.max(0, next.objective[target] - totalCrop(next, target)));
+      const source = [...CROPS]
+        .filter((crop) => crop !== target)
+        .sort((a, b) => next.harvest[b] - next.harvest[a])[0];
+      const amount = Math.min(
+        3,
+        next.harvest[source],
+        Math.max(0, next.objective[target] - totalCrop(next, target)),
+      );
       next.harvest[source] -= amount;
       next.harvest[target] += amount;
-    } else if (card.name === "Pronóstico Meteorológico") {
+      return `Metamorfosis convirtió ${amount} ${source} en ${target}.`;
+    }
+    if (card.name === "Pronóstico Meteorológico") {
       const severity: Record<string, number> = { Tornado: 10, Terremoto: 9 };
       const nextThree = next.plagueDeck.splice(0, 3);
-      next.plagueDeck.unshift(...nextThree.sort((a, b) => (severity[a] || 1) - (severity[b] || 1)));
+      const ordered = nextThree.sort((a, b) => (severity[a] || 1) - (severity[b] || 1));
+      next.plagueDeck.unshift(...ordered);
+      return `Próximas Plagas: ${ordered.join(" → ")}. Las severas fueron alejadas.`;
+    }
+    return `${card.name} fue utilizada.`;
+  }
+
+  function playCard(index: number) {
+    if (!game || game.pendingPlague || game.status !== "playing") return;
+    const card = game.hands[game.activePlayer][index];
+    if (!card) return;
+    const availability = cardAvailability(card);
+    if (!availability.enabled) {
+      setToast(availability.reason);
+      return;
+    }
+    const next = cloneGame(game);
+
+    if (card.kind === "construcción") {
+      installBuilding(next, card);
+      replaceHandCard(next, next.activePlayer, index);
+      setToast(`${card.name} quedó activa como construcción compartida.`);
+      concludeAction(next, `Jugador ${game.activePlayer + 1} construyó ${card.name}.`);
+      return;
     }
 
+    const result = applyImmediate(next, card);
     next.resourceDiscard.push(card);
     replaceHandCard(next, next.activePlayer, index);
-    concludeAction(next, `Jugador ${game.activePlayer + 1} usó ${card.name}.`);
+    setToast(result);
+    concludeAction(next, `Jugador ${game.activePlayer + 1} usó ${card.name}. ${result}`);
+  }
+
+  function storeInWarehouse(index: number) {
+    if (!game || !game.buildings.includes("Galpón") || game.warehouse.length >= 2) return;
+    const next = cloneGame(game);
+    const [stored] = next.hands[next.activePlayer].splice(index, 1);
+    if (!stored) return;
+    next.warehouse.push(stored);
+    next.log.unshift(`${stored.name} quedó guardada en el Galpón.`);
+    setToast(`${stored.name} ahora es un Recurso compartido.`);
+    setGame(next);
+  }
+
+  function useWarehouseCard(index: number) {
+    if (!game || game.pendingPlague) return;
+    const card = game.warehouse[index];
+    if (!card) return;
+    const availability = cardAvailability(card);
+    if (!availability.enabled) {
+      setToast(availability.reason);
+      return;
+    }
+    const next = cloneGame(game);
+    next.warehouse.splice(index, 1);
+    if (card.kind === "construcción") {
+      installBuilding(next, card);
+      setToast(`${card.name} quedó activa como construcción compartida.`);
+    }
+    else {
+      const result = applyImmediate(next, card);
+      next.resourceDiscard.push(card);
+      setToast(result);
+    }
+    const replacement = next.market.shift();
+    if (replacement) next.warehouse.push(replacement);
+    fillMarket(next);
+    concludeAction(next, `Jugador ${game.activePlayer + 1} usó ${card.name} desde el Galpón.`);
+  }
+
+  function activateBuilding(name: string) {
+    if (!game || game.pendingPlague || game.status !== "playing") return;
+    if (name !== "Cisterna") return;
+    if (game.cisternWater >= 3) {
+      setToast("La Cisterna ya contiene 3 fichas de Agua.");
+      return;
+    }
+    const next = cloneGame(game);
+    next.cisternWater += 1;
+    concludeAction(next, `Jugador ${game.activePlayer + 1} guardó 1 Agua en la Cisterna.`);
   }
 
   function chooseMarket(index: number) {
@@ -646,10 +825,19 @@ export default function Home() {
   function useDefense() {
     if (!game?.pendingPlague || !defense) return;
     const next = cloneGame(game);
-    const used = next.hands[defense.player][defense.index];
+    let used: ResourceCard;
+    if (defense.warehouse) {
+      used = next.warehouse.splice(defense.index, 1)[0];
+      const replacement = next.market.shift();
+      if (replacement) next.warehouse.push(replacement);
+      fillMarket(next);
+    } else {
+      used = next.hands[defense.player][defense.index];
+      replaceHandCard(next, defense.player, defense.index);
+    }
     next.resourceDiscard.push(used);
-    replaceHandCard(next, defense.player, defense.index);
     next.log.unshift(`${used.name} canceló completamente ${next.pendingPlague}.`);
+    setToast(`${used.name} se activó y canceló ${next.pendingPlague}.`);
     next.pendingPlague = undefined;
     next.irrigationUsed = false;
     next.weedsActive = false;
@@ -660,15 +848,34 @@ export default function Home() {
   }
 
   function removePlants(next: Game, indexes: number[]) {
+    const removed: Crop[] = [];
     indexes.forEach((index) => {
       const plot = next.field[index];
       if (plot.plant && damageable(plot)) {
+        removed.push(plot.plant);
         plot.plant = undefined;
         plot.water = 0;
         plot.required = 1;
         plot.crow = false;
       }
     });
+    if (removed.length && next.buildings.includes("Compostera") && !next.compost) {
+      next.compost = removed[0];
+      next.log.unshift(`La Compostera recuperó ${removed[0]}.`);
+    }
+  }
+
+  function redistributeCistern(next: Game) {
+    if (!next.buildings.includes("Cisterna") || next.cisternWater <= 0) return;
+    let distributed = 0;
+    for (const plot of next.field) {
+      while (plot.plant && plot.water < plot.required && next.cisternWater > 0) {
+        plot.water += 1;
+        next.cisternWater -= 1;
+        distributed += 1;
+      }
+    }
+    if (distributed) next.log.unshift(`La Cisterna devolvió ${distributed} fichas de Agua.`);
   }
 
   function resolvePlague() {
@@ -695,6 +902,14 @@ export default function Home() {
     } else if (plague === "Terremoto") {
       const options = next.field.map((_, index) => index).filter((index) => !next.field[index].greenhouse);
       const index = options[Math.floor(Math.random() * options.length)];
+      if (
+        next.field[index].plant &&
+        next.buildings.includes("Compostera") &&
+        !next.compost
+      ) {
+        next.compost = next.field[index].plant;
+        next.log.unshift(`La Compostera recuperó ${next.field[index].plant}.`);
+      }
       next.field[index].damaged = true;
       next.field[index].plant = undefined;
       next.field[index].water = 0;
@@ -723,6 +938,7 @@ export default function Home() {
         if (plot.water === 0) plot.required = 2;
         plot.water = 0;
       });
+      redistributeCistern(next);
     } else if (plague === "Helada") {
       removePlants(
         next,
@@ -755,6 +971,7 @@ export default function Home() {
         if (plot.plant) plot.water = 0;
         else if (!plot.greenhouse) plot.drought += 1;
       });
+      redistributeCistern(next);
     } else if (plague === "Maleza") {
       next.weedsActive = true;
     }
@@ -777,6 +994,17 @@ export default function Home() {
       return Boolean(plot.plant) && !plot.crow && !game.weedsActive && plot.water >= plot.required;
     }
     return plot.crow || plot.drought > 0 || plot.damaged;
+  }
+
+  function buildingStatus(name: string) {
+    if (name === "Cisterna") return `${game?.cisternWater ?? 0}/3 Agua`;
+    if (name === "Galpón") return `${game?.warehouse.length ?? 0}/2 Recursos`;
+    if (name === "Compostera") return game?.compost ? `Guarda ${game.compost}` : "Vacía";
+    if (name === "Sistema de Riego") return game?.irrigationUsed ? "Usado este ciclo" : "Disponible";
+    if (name === "Silo") {
+      return `${Object.values(game?.silo ?? emptyHarvest()).reduce((sum, amount) => sum + amount, 0)} protegidos`;
+    }
+    return "Efecto permanente";
   }
 
   if (!game) {
@@ -897,11 +1125,29 @@ export default function Home() {
           <section className="panel buildings-panel">
             <div className="panel-heading"><span>CONSTRUCCIONES</span><b>{game.buildings.length}/4</b></div>
             <div className="building-slots">
-              {[0, 1, 2, 3].map((slot) => (
-                <div className={game.buildings[slot] ? "occupied" : ""} key={slot}>
-                  {game.buildings[slot] || <span>Espacio libre</span>}
-                </div>
-              ))}
+              {[0, 1, 2, 3].map((slot) => {
+                const building = game.buildings[slot];
+                return (
+                  <div className={building ? "occupied" : ""} key={slot}>
+                    {building ? (
+                      <>
+                        <strong>{building}</strong>
+                        <small>{buildingStatus(building)}</small>
+                        {building === "Cisterna" && (
+                          <button
+                            disabled={game.cisternWater >= 3}
+                            onClick={() => activateBuilding(building)}
+                          >
+                            Guardar agua
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span>Espacio libre</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
         </aside>
@@ -982,27 +1228,65 @@ export default function Home() {
           </section>
 
           <section className="panel hand-panel">
-            <div className="panel-heading"><span>MANO · JUGADOR {game.activePlayer + 1}</span><b>{currentHand.length}</b></div>
+            <div className="panel-heading hand-heading">
+              <span>MANO · JUGADOR {game.activePlayer + 1}</span>
+              {game.buildings.includes("Galpón") && (
+                <div className="warehouse-chips">
+                  <small>GALPÓN</small>
+                  {game.warehouse.length ? game.warehouse.map((card, index) => (
+                    <button
+                      key={`${card.name}-warehouse-${index}`}
+                      disabled={card.kind === "defensa"}
+                      title={
+                        card.kind === "defensa"
+                          ? `Se activará automáticamente contra ${card.counters}.`
+                          : `Usar ${card.name} desde el Galpón`
+                      }
+                      onClick={() => useWarehouseCard(index)}
+                    >
+                      {card.name}
+                    </button>
+                  )) : <i>vacío</i>}
+                </div>
+              )}
+              <b>{currentHand.length}</b>
+            </div>
             <div className="hand">
-              {currentHand.map((card, index) => (
-                <article key={`${card.name}-${index}`} className={`hand-card ${card.kind}`}>
-                  <img src={card.image} alt="" />
-                  <div>
-                    <small>{card.kind}</small>
-                    <strong>{card.name}</strong>
-                    <p>{card.description}</p>
-                    <div className="card-actions">
-                      {card.kind !== "defensa" && <button onClick={() => playCard(index)}>Usar</button>}
-                      <button
-                        className={exchangeIndex === index ? "selected" : ""}
-                        onClick={() => setExchangeIndex(exchangeIndex === index ? null : index)}
-                      >
-                        Cambiar
-                      </button>
+              {currentHand.map((card, index) => {
+                const availability = cardAvailability(card);
+                return (
+                  <article key={`${card.name}-${index}`} className={`hand-card ${card.kind}`}>
+                    <img src={card.image} alt="" />
+                    <div>
+                      <small>{card.kind === "defensa" ? `reacción · ${card.counters}` : card.kind}</small>
+                      <strong>{card.name}</strong>
+                      <p>{card.description}</p>
+                      <div className="card-actions">
+                        <button
+                          disabled={!availability.enabled}
+                          title={availability.reason}
+                          onClick={() => playCard(index)}
+                        >
+                          {card.kind === "defensa"
+                            ? "Reacción"
+                            : card.kind === "construcción"
+                              ? "Construir"
+                              : "Usar"}
+                        </button>
+                        <button
+                          className={exchangeIndex === index ? "selected" : ""}
+                          onClick={() => setExchangeIndex(exchangeIndex === index ? null : index)}
+                        >
+                          Cambiar
+                        </button>
+                        {game.buildings.includes("Galpón") && game.warehouse.length < 2 && (
+                          <button onClick={() => storeInWarehouse(index)}>Guardar</button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </section>
 
@@ -1023,7 +1307,9 @@ export default function Home() {
               <p>{PLAGUE_INFO[game.pendingPlague].text}</p>
               {defense ? (
                 <div className="defense-found">
-                  <span>Defensa disponible · Jugador {defense.player + 1}</span>
+                  <span>
+                    Defensa disponible · {defense.warehouse ? "Galpón compartido" : `Jugador ${defense.player + 1}`}
+                  </span>
                   <strong>{defense.card.name}</strong>
                 </div>
               ) : (
@@ -1037,6 +1323,8 @@ export default function Home() {
           </section>
         </div>
       )}
+
+      {toast && <div className="game-toast" role="status">{toast}</div>}
 
       {game.status !== "playing" && (
         <div className="modal-backdrop">
