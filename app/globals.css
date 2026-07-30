@@ -1912,6 +1912,312 @@ body {
   }
 }
 
+/* Readable hand and enlarged card inspection */
+.dashboard {
+  grid-template-rows: minmax(0, 1fr) 190px;
+}
+
+.field-grid {
+  width: min(100%, calc(100dvh - 378px));
+}
+
+.hand-panel,
+.hand {
+  overflow: visible;
+}
+
+.hand .hand-card {
+  width: 138px;
+  height: 153px;
+  flex-basis: 138px;
+  grid-template-rows: 91px 62px;
+  cursor: pointer;
+}
+
+.hand .hand-card > img {
+  height: 91px;
+}
+
+.hand .hand-card > div {
+  grid-template-rows: 10px 19px 29px;
+}
+
+.hand .hand-card strong {
+  font-size: 9px;
+}
+
+.hand .hand-card small {
+  font-size: 6px;
+}
+
+.hand .card-actions button {
+  height: 23px;
+  font-size: 6px;
+}
+
+.building-card {
+  cursor: pointer;
+}
+
+.card-preview-backdrop {
+  z-index: 90;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(80, 111, 75, .25), transparent 42%),
+    rgba(5, 13, 8, .9);
+  backdrop-filter: blur(7px);
+}
+
+.card-preview-modal {
+  position: relative;
+  width: min(760px, calc(100vw - 36px));
+  max-height: calc(100dvh - 36px);
+  display: grid;
+  grid-template-columns: minmax(220px, 285px) minmax(280px, 1fr);
+  gap: clamp(22px, 4vw, 44px);
+  align-items: center;
+  padding: clamp(22px, 4vw, 42px);
+  color: #243329;
+  background:
+    linear-gradient(135deg, rgba(255,251,233,.98), rgba(230,218,175,.98));
+  border: 3px solid #d5b751;
+  border-radius: 16px;
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.65),
+    inset 0 0 0 2px rgba(255,255,255,.55);
+  animation: card-preview-enter .25s cubic-bezier(.18,.82,.24,1.1);
+}
+
+.card-preview-close {
+  position: absolute;
+  z-index: 10;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #f5e9b7;
+  background: #183b25;
+  border: 1px solid #d5b751;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 23px;
+}
+
+.card-preview-portrait {
+  position: relative;
+  height: min(440px, calc(100dvh - 90px));
+  min-height: 330px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 52px 28px;
+  padding: 10px;
+  color: #fff3c7;
+  background: radial-gradient(circle at 50% 32%, #47634b, #172d1e 74%);
+  border: 9px solid #8a723a;
+  border-radius: 24px 24px 17px 17px;
+  outline: 2px solid #171a15;
+  box-shadow:
+    0 5px 0 #372b15,
+    0 11px 0 #0b120d,
+    0 22px 32px rgba(0,0,0,.42),
+    inset 0 0 0 2px rgba(255,238,174,.32);
+  transform: perspective(900px) rotateY(4deg) rotateX(1deg);
+}
+
+.card-preview-portrait::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 2px solid rgba(255,238,175,.32);
+  border-radius: 13px;
+  pointer-events: none;
+}
+
+.card-preview-portrait > img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  border: 3px solid #e3c975;
+  border-radius: 13px 13px 48% 48% / 13px 13px 12% 12%;
+  box-shadow: 0 4px 10px rgba(0,0,0,.44);
+}
+
+.card-preview-portrait > strong {
+  align-self: center;
+  margin: -8px -2px 0;
+  padding: 11px 7px 8px;
+  overflow: hidden;
+  color: #fff2bf;
+  background: linear-gradient(90deg, #60451f, #ae8138 50%, #60451f);
+  border: 2px solid #e7cc75;
+  border-radius: 50% / 25%;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 2px 2px #1c0e05;
+  font: 900 clamp(14px, 2vw, 21px)/1 Georgia, serif;
+}
+
+.card-preview-portrait > small {
+  align-self: center;
+  color: #e9ce6d;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.preview-kind {
+  position: absolute;
+  z-index: 4;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  color: #fff0b8;
+  background: rgba(18,41,25,.88);
+  border: 1px solid #d7bd65;
+  border-radius: 12px;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.card-preview-modal.defensa .card-preview-portrait {
+  background: radial-gradient(circle at 50% 32%, #3d6679, #172d36 74%);
+  border-color: #6e9bb6;
+}
+
+.card-preview-modal.construcción .card-preview-portrait {
+  background: radial-gradient(circle at 50% 32%, #795025, #312416 74%);
+  border-color: #aa7134;
+}
+
+.card-preview-copy {
+  min-width: 0;
+}
+
+.preview-eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #8b6929;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .17em;
+}
+
+.card-preview-copy h2 {
+  margin: 0 0 14px;
+  color: #173a23;
+  font: 900 clamp(27px, 4vw, 46px)/.95 Georgia, serif;
+  letter-spacing: -.04em;
+}
+
+.card-preview-copy > p {
+  margin: 0 0 18px;
+  color: #3e493f;
+  font: clamp(15px, 2vw, 20px)/1.45 Georgia, serif;
+}
+
+.preview-status {
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  color: #24402c;
+  background: rgba(49,91,60,.1);
+  border-left: 4px solid #b79735;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-actions button {
+  min-height: 38px;
+  padding: 9px 14px;
+  color: #f5e9bd;
+  background: #355b40;
+  border: 1px solid #567c60;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.preview-actions button.primary {
+  color: #173522;
+  background: linear-gradient(#f1d269, #d8ad31);
+  border-color: #fff0a0;
+  box-shadow: 0 3px 0 #8e681d;
+}
+
+.preview-actions button:disabled {
+  opacity: .36;
+  cursor: not-allowed;
+}
+
+.preview-help {
+  display: block;
+  margin-top: 10px;
+  color: #6e6e62;
+  font-size: 9px;
+}
+
+@keyframes card-preview-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(.95);
+  }
+}
+
+@media (max-height: 720px) {
+  .dashboard {
+    grid-template-rows: minmax(0, 1fr) 166px;
+  }
+
+  .field-grid {
+    width: min(100%, calc(100dvh - 354px));
+  }
+
+  .hand .hand-card {
+    width: 120px;
+    height: 129px;
+    flex-basis: 120px;
+    grid-template-rows: 75px 54px;
+  }
+
+  .hand .hand-card > img {
+    height: 75px;
+  }
+
+  .card-preview-portrait {
+    height: calc(100dvh - 70px);
+    min-height: 0;
+  }
+}
+
+@media (max-width: 780px) {
+  .card-preview-modal {
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .card-preview-portrait {
+    min-height: 290px;
+  }
+}
+
 @media (max-width: 900px) and (orientation: portrait) {
   .game-shell::after {
     content: "GIRÁ EL DISPOSITIVO PARA JUGAR";

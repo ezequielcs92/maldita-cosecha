@@ -66,6 +66,12 @@ type CardSource =
   | { kind: "hand"; index: number }
   | { kind: "warehouse"; index: number };
 
+type CardPreview = {
+  card: ResourceCard;
+  source: "hand" | "market" | "building" | "warehouse";
+  index?: number;
+};
+
 type Decision =
   | { type: "greenhouse"; source: CardSource }
   | { type: "tractor"; source: CardSource }
@@ -461,6 +467,7 @@ export default function Home() {
   const [hasSave, setHasSave] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
 
   useEffect(() => {
     setHasSave(Boolean(localStorage.getItem("maldita-cosecha-save")));
@@ -484,10 +491,11 @@ export default function Home() {
       if (event.key === "Escape") {
         setShowRules(false);
         setExchangeIndex(null);
+        setCardPreview(null);
         if (!decision?.type.startsWith("plague-")) setDecision(null);
         return;
       }
-      if (showRules || decision || game?.pendingPlague || game?.status !== "playing") return;
+      if (showRules || decision || cardPreview || game?.pendingPlague || game?.status !== "playing") return;
       const shortcuts: Record<string, Action> = {
         "1": "plantar",
         "2": "regar",
@@ -498,7 +506,7 @@ export default function Home() {
     }
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [decision, game?.pendingPlague, game?.status, showRules]);
+  }, [cardPreview, decision, game?.pendingPlague, game?.status, showRules]);
 
   const defenseOptions = useMemo(() => {
     if (!game?.pendingPlague) return [];
@@ -1537,7 +1545,23 @@ export default function Home() {
                   ? RESOURCE_CARDS.find((card) => card.name === building)
                   : undefined;
                 return (
-                  <div className={building ? "occupied building-card" : "building-empty"} key={slot}>
+                  <div
+                    className={building ? "occupied building-card" : "building-empty"}
+                    key={slot}
+                    role={building ? "button" : undefined}
+                    tabIndex={building ? 0 : undefined}
+                    aria-label={building ? `Ver detalles de ${building}` : undefined}
+                    onClick={() => {
+                      if (buildingResource) {
+                        setCardPreview({ card: buildingResource, source: "building" });
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (buildingResource && (event.key === "Enter" || event.key === " ")) {
+                        setCardPreview({ card: buildingResource, source: "building" });
+                      }
+                    }}
+                  >
                     {building ? (
                       <>
                         {buildingResource && (
@@ -1548,7 +1572,10 @@ export default function Home() {
                         {building === "Cisterna" && (
                           <button
                             disabled={game.cisternWater >= 3}
-                            onClick={() => activateBuilding(building)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              activateBuilding(building);
+                            }}
                           >
                             Guardar agua
                           </button>
@@ -1648,7 +1675,8 @@ export default function Home() {
                 <button
                   className={`market-card ${card.kind}`}
                   key={`${card.name}-${index}`}
-                  onClick={() => chooseMarket(index)}
+                  onClick={() => setCardPreview({ card, source: "market", index })}
+                  aria-label={`Ver ${card.name}`}
                 >
                   <img src={card.image} alt="" />
                   <span>{card.name}</span>
@@ -1674,7 +1702,7 @@ export default function Home() {
                           ? `Podrás elegirla cuando aparezca ${card.counters}.`
                           : `Usar ${card.name} desde el Galpón`
                       }
-                      onClick={() => useWarehouseCard(index)}
+                      onClick={() => setCardPreview({ card, source: "warehouse", index })}
                     >
                       {card.name}
                     </button>
@@ -1687,7 +1715,19 @@ export default function Home() {
               {currentHand.map((card, index) => {
                 const availability = cardAvailability(card);
                 return (
-                  <article key={`${card.name}-${index}`} className={`hand-card ${card.kind}`}>
+                  <article
+                    key={`${card.name}-${index}`}
+                    className={`hand-card ${card.kind}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Ver ${card.name}`}
+                    onClick={() => setCardPreview({ card, source: "hand", index })}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        setCardPreview({ card, source: "hand", index });
+                      }
+                    }}
+                  >
                     <img src={card.image} alt="" />
                     <div>
                       <small>{card.kind === "defensa" ? `reacción · ${card.counters}` : card.kind}</small>
@@ -1698,7 +1738,10 @@ export default function Home() {
                           aria-disabled={!availability.enabled}
                           className={!availability.enabled ? "unavailable" : ""}
                           title={availability.reason}
-                          onClick={() => playCard(index)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            playCard(index);
+                          }}
                         >
                           {card.kind === "defensa"
                             ? "Reacción"
@@ -1708,12 +1751,22 @@ export default function Home() {
                         </button>
                         <button
                           className={exchangeIndex === index ? "selected" : ""}
-                          onClick={() => setExchangeIndex(exchangeIndex === index ? null : index)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExchangeIndex(exchangeIndex === index ? null : index);
+                          }}
                         >
                           Cambiar
                         </button>
                         {game.buildings.includes("Galpón") && game.warehouse.length < 2 && (
-                          <button onClick={() => storeInWarehouse(index)}>Guardar</button>
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              storeInWarehouse(index);
+                            }}
+                          >
+                            Guardar
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1729,6 +1782,117 @@ export default function Home() {
           </section>
         </aside>
       </section>
+
+      {cardPreview && (() => {
+        const { card, source, index } = cardPreview;
+        const availability = cardAvailability(card);
+        const status =
+          source === "building"
+            ? buildingStatus(card.name)
+            : card.kind === "defensa"
+              ? `Se puede jugar como reacción frente a ${card.counters}.`
+              : availability.reason;
+        return (
+          <div className="modal-backdrop card-preview-backdrop" onClick={() => setCardPreview(null)}>
+            <section
+              className={`card-preview-modal ${card.kind}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Detalles de ${card.name}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button className="card-preview-close" onClick={() => setCardPreview(null)} aria-label="Cerrar">
+                ×
+              </button>
+              <div className="card-preview-portrait">
+                <span className="preview-kind">{card.kind}</span>
+                <img src={card.image} alt="" />
+                <strong>{card.name}</strong>
+                <small>{card.kind === "defensa" ? `Reacción · ${card.counters}` : card.kind}</small>
+              </div>
+              <div className="card-preview-copy">
+                <span className="preview-eyebrow">
+                  {source === "market"
+                    ? "MERCADO"
+                    : source === "building"
+                      ? "CONSTRUCCIÓN ACTIVA"
+                      : source === "warehouse"
+                        ? "GALPÓN"
+                        : `MANO · JUGADOR ${game.activePlayer + 1}`}
+                </span>
+                <h2>{card.name}</h2>
+                <p>{card.description}</p>
+                <div className="preview-status">{status}</div>
+                <div className="preview-actions">
+                  {source === "market" && (
+                    <button
+                      className="primary"
+                      disabled={exchangeIndex === null}
+                      onClick={() => {
+                        setCardPreview(null);
+                        chooseMarket(index!);
+                      }}
+                    >
+                      Tomar esta carta
+                    </button>
+                  )}
+                  {source === "hand" && card.kind !== "defensa" && (
+                    <button
+                      className="primary"
+                      disabled={!availability.enabled}
+                      onClick={() => {
+                        setCardPreview(null);
+                        playCard(index!);
+                      }}
+                    >
+                      {card.kind === "construcción" ? "Construir" : "Usar carta"}
+                    </button>
+                  )}
+                  {source === "hand" && (
+                    <button
+                      onClick={() => {
+                        setExchangeIndex(index!);
+                        setCardPreview(null);
+                        setToast("Ahora elegí una carta del Mercado.");
+                      }}
+                    >
+                      Cambiar
+                    </button>
+                  )}
+                  {source === "hand" && game.buildings.includes("Galpón") && game.warehouse.length < 2 && (
+                    <button
+                      onClick={() => {
+                        setCardPreview(null);
+                        storeInWarehouse(index!);
+                      }}
+                    >
+                      Guardar
+                    </button>
+                  )}
+                  {source === "warehouse" && card.kind !== "defensa" && (
+                    <button
+                      className="primary"
+                      disabled={!availability.enabled}
+                      onClick={() => {
+                        setCardPreview(null);
+                        useWarehouseCard(index!);
+                      }}
+                    >
+                      Usar desde el Galpón
+                    </button>
+                  )}
+                  <button onClick={() => setCardPreview(null)}>Cerrar</button>
+                </div>
+                {source === "market" && exchangeIndex === null && (
+                  <small className="preview-help">
+                    Para tomarla, primero seleccioná “Cambiar” en una carta de tu mano.
+                  </small>
+                )}
+              </div>
+            </section>
+          </div>
+        );
+      })()}
 
       {game.pendingPlague && (
         <div className="modal-backdrop">
