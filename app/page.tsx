@@ -72,6 +72,12 @@ type CardPreview = {
   index?: number;
 };
 
+type CardAnimation = {
+  card: ResourceCard;
+  motion: "play" | "build" | "draw" | "defense" | "store";
+  id: number;
+};
+
 type Decision =
   | { type: "greenhouse"; source: CardSource }
   | { type: "tractor"; source: CardSource }
@@ -468,6 +474,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
+  const [cardAnimation, setCardAnimation] = useState<CardAnimation | null>(null);
 
   useEffect(() => {
     setHasSave(Boolean(localStorage.getItem("maldita-cosecha-save")));
@@ -485,6 +492,12 @@ export default function Home() {
     const timer = window.setTimeout(() => setToast(null), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!cardAnimation) return;
+    const timer = window.setTimeout(() => setCardAnimation(null), 1050);
+    return () => window.clearTimeout(timer);
+  }, [cardAnimation]);
 
   useEffect(() => {
     function handleKeyboard(event: KeyboardEvent) {
@@ -765,7 +778,12 @@ export default function Home() {
     fillMarket(next);
   }
 
+  function showCardMotion(card: ResourceCard, motion: CardAnimation["motion"]) {
+    setCardAnimation({ card, motion, id: Date.now() });
+  }
+
   function finishCard(next: Game, card: ResourceCard, source: CardSource, result: string) {
+    showCardMotion(card, card.kind === "construcción" ? "build" : "play");
     consumeCard(next, card, source);
     setToast(result);
     concludeAction(
@@ -840,6 +858,7 @@ export default function Home() {
     if (!stored) return;
     next.warehouse.push(stored);
     next.log.unshift(`${stored.name} quedó guardada en el Galpón.`);
+    showCardMotion(stored, "store");
     setToast(`${stored.name} ahora es un Recurso compartido.`);
     setGame(next);
   }
@@ -1112,6 +1131,7 @@ export default function Home() {
     const next = cloneGame(game);
     const old = next.hands[next.activePlayer][exchangeIndex];
     const chosen = next.market[index];
+    showCardMotion(chosen, "draw");
     next.hands[next.activePlayer][exchangeIndex] = chosen;
     next.market.splice(index, 1);
     next.resourceDiscard.push(old);
@@ -1134,6 +1154,7 @@ export default function Home() {
       replaceHandCard(next, defense.player, defense.index);
     }
     next.resourceDiscard.push(used);
+    showCardMotion(used, "defense");
     next.log.unshift(`${used.name} canceló completamente ${next.pendingPlague}.`);
     setToast(`${used.name} se activó y canceló ${next.pendingPlague}.`);
     next.pendingPlague = undefined;
@@ -1782,6 +1803,31 @@ export default function Home() {
           </section>
         </aside>
       </section>
+
+      {cardAnimation && (
+        <div
+          className={`card-motion-layer ${cardAnimation.motion}`}
+          key={cardAnimation.id}
+          aria-hidden="true"
+        >
+          <div className={`motion-card ${cardAnimation.card.kind}`}>
+            <img src={cardAnimation.card.image} alt="" />
+            <strong>{cardAnimation.card.name}</strong>
+            <small>
+              {cardAnimation.motion === "build"
+                ? "CONSTRUCCIÓN"
+                : cardAnimation.motion === "draw"
+                  ? "NUEVO RECURSO"
+                  : cardAnimation.motion === "defense"
+                    ? "DEFENSA"
+                    : cardAnimation.motion === "store"
+                      ? "AL GALPÓN"
+                      : "CARTA JUGADA"}
+            </small>
+          </div>
+          <span className="motion-burst" />
+        </div>
+      )}
 
       {cardPreview && (() => {
         const { card, source, index } = cardPreview;

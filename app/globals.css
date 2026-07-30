@@ -2218,6 +2218,235 @@ body {
   }
 }
 
+/* Card travel animations */
+.card-motion-layer {
+  position: fixed;
+  z-index: 88;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  perspective: 1000px;
+}
+
+.motion-card {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: 142px;
+  height: 198px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 34px 19px;
+  padding: 7px;
+  color: #fff1bd;
+  background: linear-gradient(#426048, #172d1d);
+  border: 7px solid #8d743b;
+  border-radius: 17px 17px 12px 12px;
+  outline: 2px solid #101711;
+  box-shadow:
+    0 5px 0 #382b15,
+    0 12px 28px rgba(0,0,0,.58),
+    0 0 30px rgba(244,206,78,.32);
+  transform: translate(-50%, -50%);
+}
+
+.motion-card img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  border: 2px solid #e2c875;
+  border-radius: 8px 8px 43% 43% / 8px 8px 13% 13%;
+}
+
+.motion-card strong {
+  align-self: center;
+  margin: -5px -2px 0;
+  padding: 7px 3px 5px;
+  overflow: hidden;
+  background: linear-gradient(90deg,#664a21,#ad8038 50%,#664a21);
+  border: 1px solid #e8cd75;
+  border-radius: 50% / 24%;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #180c04;
+  font: 900 10px/1 Georgia, serif;
+}
+
+.motion-card small {
+  align-self: center;
+  text-align: center;
+  color: #ebce69;
+  font-size: 6px;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.motion-card.defensa {
+  background: linear-gradient(#365e70,#172d36);
+  border-color: #6895b1;
+}
+
+.motion-card.construcción {
+  background: linear-gradient(#764a20,#302316);
+  border-color: #aa7032;
+}
+
+.card-motion-layer.play .motion-card {
+  animation: card-play-flight 1s forwards cubic-bezier(.2,.72,.22,1);
+}
+
+.card-motion-layer.build .motion-card {
+  animation: card-build-flight 1s forwards cubic-bezier(.2,.72,.22,1);
+}
+
+.card-motion-layer.draw .motion-card {
+  animation: card-draw-flight 1s forwards cubic-bezier(.2,.72,.22,1);
+}
+
+.card-motion-layer.store .motion-card {
+  animation: card-store-flight 1s forwards cubic-bezier(.2,.72,.22,1);
+}
+
+.card-motion-layer.defense .motion-card {
+  animation: card-defense-flight 1s forwards cubic-bezier(.18,.8,.22,1);
+}
+
+.motion-burst {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  opacity: 0;
+  border: 5px solid #f7dc71;
+  border-radius: 50%;
+  box-shadow: 0 0 35px #f3cc4f, inset 0 0 28px #f3cc4f;
+  transform: translate(-50%,-50%) scale(.2);
+  animation: motion-burst .72s .28s ease-out forwards;
+}
+
+@keyframes card-play-flight {
+  0% {
+    top: 90%;
+    opacity: .2;
+    transform: translate(-50%,-50%) rotateZ(-8deg) rotateX(-16deg) scale(.55);
+  }
+  42% {
+    top: 47%;
+    opacity: 1;
+    transform: translate(-50%,-50%) rotateZ(2deg) rotateX(2deg) scale(1.12);
+  }
+  72% {
+    top: 43%;
+    opacity: 1;
+    transform: translate(-50%,-50%) scale(1);
+  }
+  100% {
+    top: 18%;
+    opacity: 0;
+    transform: translate(-50%,-50%) rotateZ(5deg) scale(.72);
+  }
+}
+
+@keyframes card-build-flight {
+  0% {
+    top: 90%;
+    left: 55%;
+    opacity: .3;
+    transform: translate(-50%,-50%) rotateZ(8deg) scale(.55);
+  }
+  48% {
+    top: 46%;
+    left: 50%;
+    opacity: 1;
+    transform: translate(-50%,-50%) rotateZ(0) scale(1.1);
+  }
+  100% {
+    top: 60%;
+    left: 12%;
+    opacity: 0;
+    transform: translate(-50%,-50%) rotateZ(-9deg) scale(.45);
+  }
+}
+
+@keyframes card-draw-flight {
+  0% {
+    top: 34%;
+    left: 88%;
+    opacity: .25;
+    transform: translate(-50%,-50%) rotateY(-20deg) scale(.48);
+  }
+  48% {
+    top: 46%;
+    left: 52%;
+    opacity: 1;
+    transform: translate(-50%,-50%) rotateY(4deg) scale(1.08);
+  }
+  100% {
+    top: 91%;
+    left: 58%;
+    opacity: 0;
+    transform: translate(-50%,-50%) rotateZ(5deg) scale(.5);
+  }
+}
+
+@keyframes card-store-flight {
+  0% {
+    top: 90%;
+    left: 58%;
+    opacity: .35;
+    transform: translate(-50%,-50%) rotateZ(5deg) scale(.55);
+  }
+  46% {
+    top: 48%;
+    left: 50%;
+    opacity: 1;
+    transform: translate(-50%,-50%) scale(1.06);
+  }
+  100% {
+    top: 59%;
+    left: 14%;
+    opacity: 0;
+    transform: translate(-50%,-50%) rotateZ(-12deg) scale(.35);
+  }
+}
+
+@keyframes card-defense-flight {
+  0% {
+    opacity: 0;
+    transform: translate(-50%,-50%) rotateY(90deg) scale(.65);
+  }
+  42% {
+    opacity: 1;
+    transform: translate(-50%,-50%) rotateY(0) scale(1.18);
+    filter: brightness(1.25);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(-50%,-50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%,-50%) scale(1.45);
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes motion-burst {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(.2); }
+  35% { opacity: .9; }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-motion-layer {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) and (orientation: portrait) {
   .game-shell::after {
     content: "GIRÁ EL DISPOSITIVO PARA JUGAR";
