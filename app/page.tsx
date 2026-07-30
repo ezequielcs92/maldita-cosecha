@@ -769,7 +769,12 @@ export default function Home() {
               Modo
               <div className="mode-switch">
                 <button className={mode === "normal" ? "active" : ""} onClick={() => setMode("normal")}>Normal</button>
-                <button className={mode === "especial" ? "active" : ""} onClick={() => setMode("especial")}>Especial</button>
+                <button
+                  disabled
+                  title="Se incorporará después de validar el modo normal"
+                >
+                  Especial · Próximamente
+                </button>
               </div>
             </label>
           </div>

@@ -153,6 +153,12 @@ button:focus-visible {
   font-weight: 800;
 }
 
+.mode-switch button:disabled {
+  color: #969285;
+  background: #efede5;
+  cursor: not-allowed;
+}
+
 .mode-switch .active {
   color: white;
   background: var(--green);
