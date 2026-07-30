@@ -2447,6 +2447,128 @@ body {
   }
 }
 
+/* Cursor-reactive card parallax */
+.hand .hand-card,
+.market .market-card,
+.building-slots .building-card,
+.card-preview-portrait {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --glare-x: 50%;
+  --glare-y: 35%;
+}
+
+.hand .hand-card:hover {
+  transform:
+    translateY(-20px)
+    translateZ(55px)
+    rotateX(var(--tilt-x))
+    rotateY(var(--tilt-y))
+    rotateZ(0)
+    scale(1.18);
+}
+
+.market .market-card:hover {
+  transform:
+    translateX(-10px)
+    translateZ(45px)
+    rotateX(var(--tilt-x))
+    rotateY(var(--tilt-y))
+    scale(1.08);
+}
+
+.building-slots .building-card:hover {
+  transform:
+    translateY(-4px)
+    translateZ(28px)
+    rotateX(var(--tilt-x))
+    rotateY(var(--tilt-y))
+    scale(1.035);
+}
+
+.hand .hand-card::after,
+.market .market-card::after,
+.building-slots .building-card::after {
+  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: auto;
+  opacity: 0;
+  background:
+    radial-gradient(
+      circle at var(--glare-x) var(--glare-y),
+      rgba(255,255,255,.5) 0,
+      rgba(255,237,164,.2) 18%,
+      transparent 46%
+    );
+  transform: none;
+  mix-blend-mode: screen;
+  transition: opacity .12s ease;
+}
+
+.hand .hand-card:hover::after,
+.market .market-card:hover::after,
+.building-slots .building-card:hover::after {
+  left: 0;
+  opacity: .8;
+}
+
+.card-preview-portrait {
+  transform:
+    perspective(900px)
+    rotateX(var(--tilt-x))
+    rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  transition: transform .1s ease-out, box-shadow .18s ease;
+  will-change: transform;
+}
+
+.card-preview-portrait:hover {
+  box-shadow:
+    0 7px 0 #372b15,
+    0 16px 0 #0b120d,
+    0 28px 42px rgba(0,0,0,.48),
+    0 0 34px rgba(233,199,87,.24),
+    inset 0 0 0 2px rgba(255,238,174,.38);
+}
+
+.card-preview-portrait::before {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at var(--glare-x) var(--glare-y),
+      rgba(255,255,255,.58) 0,
+      rgba(255,236,155,.22) 17%,
+      transparent 43%
+    );
+  mix-blend-mode: screen;
+  transition: opacity .12s ease;
+}
+
+.card-preview-portrait:hover::before {
+  opacity: .75;
+}
+
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .hand .hand-card:hover,
+  .market .market-card:hover,
+  .building-slots .building-card:hover,
+  .card-preview-portrait {
+    --tilt-x: 0deg;
+    --tilt-y: 0deg;
+  }
+
+  .card-preview-portrait::before {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) and (orientation: portrait) {
   .game-shell::after {
     content: "GIRÁ EL DISPOSITIVO PARA JUGAR";

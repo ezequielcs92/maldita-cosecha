@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 type Crop =
   | "Papa"
@@ -475,6 +480,24 @@ export default function Home() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
   const [cardAnimation, setCardAnimation] = useState<CardAnimation | null>(null);
+
+  function tiltCard(event: ReactPointerEvent<HTMLElement>) {
+    if (event.pointerType === "touch") return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+    event.currentTarget.style.setProperty("--tilt-x", `${((.5 - y) * 12).toFixed(2)}deg`);
+    event.currentTarget.style.setProperty("--tilt-y", `${((x - .5) * 14).toFixed(2)}deg`);
+    event.currentTarget.style.setProperty("--glare-x", `${(x * 100).toFixed(1)}%`);
+    event.currentTarget.style.setProperty("--glare-y", `${(y * 100).toFixed(1)}%`);
+  }
+
+  function resetCardTilt(event: ReactPointerEvent<HTMLElement>) {
+    event.currentTarget.style.removeProperty("--tilt-x");
+    event.currentTarget.style.removeProperty("--tilt-y");
+    event.currentTarget.style.removeProperty("--glare-x");
+    event.currentTarget.style.removeProperty("--glare-y");
+  }
 
   useEffect(() => {
     setHasSave(Boolean(localStorage.getItem("maldita-cosecha-save")));
@@ -1577,6 +1600,8 @@ export default function Home() {
                         setCardPreview({ card: buildingResource, source: "building" });
                       }
                     }}
+                    onPointerMove={building ? tiltCard : undefined}
+                    onPointerLeave={building ? resetCardTilt : undefined}
                     onKeyDown={(event) => {
                       if (buildingResource && (event.key === "Enter" || event.key === " ")) {
                         setCardPreview({ card: buildingResource, source: "building" });
@@ -1697,6 +1722,8 @@ export default function Home() {
                   className={`market-card ${card.kind}`}
                   key={`${card.name}-${index}`}
                   onClick={() => setCardPreview({ card, source: "market", index })}
+                  onPointerMove={tiltCard}
+                  onPointerLeave={resetCardTilt}
                   aria-label={`Ver ${card.name}`}
                 >
                   <img src={card.image} alt="" />
@@ -1743,6 +1770,8 @@ export default function Home() {
                     tabIndex={0}
                     aria-label={`Ver ${card.name}`}
                     onClick={() => setCardPreview({ card, source: "hand", index })}
+                    onPointerMove={tiltCard}
+                    onPointerLeave={resetCardTilt}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         setCardPreview({ card, source: "hand", index });
@@ -1850,7 +1879,11 @@ export default function Home() {
               <button className="card-preview-close" onClick={() => setCardPreview(null)} aria-label="Cerrar">
                 ×
               </button>
-              <div className="card-preview-portrait">
+              <div
+                className="card-preview-portrait"
+                onPointerMove={tiltCard}
+                onPointerLeave={resetCardTilt}
+              >
                 <span className="preview-kind">{card.kind}</span>
                 <img src={card.image} alt="" />
                 <strong>{card.name}</strong>
