@@ -2548,3 +2548,298 @@ body {
   opacity: .25;
   cursor: not-allowed;
 }
+
+/* Physical card table */
+.hand,
+.market,
+.building-slots {
+  perspective: 1100px;
+  perspective-origin: 50% 40%;
+}
+
+.hand-card,
+.market-card,
+.building-card {
+  position: relative;
+  isolation: isolate;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform, filter, box-shadow;
+}
+
+.hand-card {
+  overflow: hidden;
+  transform-origin: 50% 110%;
+  border: 2px solid #6e8d74;
+  border-radius: 6px;
+  box-shadow:
+    0 3px 0 #0a1c10,
+    0 8px 14px rgba(0, 0, 0, .42),
+    inset 0 0 0 1px rgba(255, 255, 255, .08);
+  transition:
+    transform .23s cubic-bezier(.2, .78, .24, 1.15),
+    box-shadow .23s ease,
+    filter .23s ease;
+  animation: deal-card .38s backwards cubic-bezier(.2, .85, .32, 1.2);
+}
+
+.hand-card:nth-child(1) {
+  transform: rotateZ(-1.1deg) rotateY(2deg);
+  animation-delay: .03s;
+}
+
+.hand-card:nth-child(2) {
+  transform: translateY(-2px) rotateX(1deg);
+  animation-delay: .1s;
+}
+
+.hand-card:nth-child(3) {
+  transform: rotateZ(1.1deg) rotateY(-2deg);
+  animation-delay: .17s;
+}
+
+.hand-card::before,
+.market-card::before,
+.building-card::before {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 3px;
+  border: 1px solid rgba(255, 245, 190, .22);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.hand-card::after,
+.market-card::after,
+.building-card::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  top: -55%;
+  bottom: -55%;
+  left: -75%;
+  width: 38%;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, .2),
+    rgba(255, 235, 157, .34),
+    transparent
+  );
+  transform: rotate(18deg);
+  transition: left .55s ease, opacity .18s ease;
+}
+
+.hand-card:hover {
+  z-index: 12;
+  filter: brightness(1.08) saturate(1.08);
+  transform: translateY(-7px) scale(1.025) rotateX(2deg) rotateZ(0);
+  box-shadow:
+    0 5px 0 #0a1c10,
+    0 16px 24px rgba(0, 0, 0, .5),
+    0 0 18px rgba(232, 198, 87, .2),
+    inset 0 0 0 1px rgba(255, 255, 255, .12);
+}
+
+.hand-card:hover::after,
+.market-card:hover::after,
+.building-card:hover::after {
+  left: 135%;
+  opacity: 1;
+}
+
+.hand-card:active {
+  transform: translateY(-2px) scale(.995);
+  transition-duration: .07s;
+}
+
+.hand-card > img,
+.hand-card > div {
+  position: relative;
+  z-index: 1;
+}
+
+.hand-card > img {
+  filter: saturate(.95) contrast(1.03);
+  box-shadow: 3px 0 9px rgba(0, 0, 0, .28);
+}
+
+.hand-card.defensa {
+  border-color: #6c9dcc;
+  box-shadow: 0 3px 0 #0a1c10, 0 8px 14px rgba(0,0,0,.42), inset 0 0 14px rgba(67,141,206,.12);
+}
+
+.hand-card.inmediata {
+  border-color: #dfbd50;
+}
+
+.hand-card.construcción {
+  border-color: #d7963e;
+  background: linear-gradient(135deg, #6d421e, #2d2418);
+}
+
+@keyframes deal-card {
+  from {
+    opacity: 0;
+    transform: translateY(34px) rotateX(-16deg) scale(.9);
+  }
+}
+
+.market {
+  padding: 9px 11px 9px 8px;
+}
+
+.market-card {
+  overflow: hidden;
+  transform: rotateY(-2deg);
+  transform-origin: 100% 50%;
+  border: 2px solid #63806a !important;
+  border-radius: 5px;
+  box-shadow:
+    3px 3px 0 #0a1c10,
+    7px 7px 14px rgba(0, 0, 0, .3) !important;
+  transition:
+    transform .22s cubic-bezier(.2, .8, .2, 1.15),
+    filter .2s ease,
+    box-shadow .22s ease,
+    border-color .2s ease;
+  animation: shop-card-enter .34s backwards ease-out;
+}
+
+.market-card:nth-child(2) {
+  animation-delay: .06s;
+}
+
+.market-card:nth-child(3) {
+  animation-delay: .12s;
+}
+
+.market-card:hover {
+  z-index: 8;
+  filter: brightness(1.12) saturate(1.1);
+  transform: translateX(-6px) translateZ(24px) rotateY(3deg) scale(1.025);
+  border-color: #f0d46c !important;
+  box-shadow:
+    4px 4px 0 #0a1c10,
+    13px 10px 20px rgba(0, 0, 0, .44),
+    0 0 16px rgba(228, 193, 76, .22) !important;
+}
+
+.market-card:active {
+  transform: translateX(-2px) translateY(2px) scale(.985);
+  transition-duration: .07s;
+}
+
+.market-card > img,
+.market-card > span,
+.market-card > small {
+  position: relative;
+  z-index: 1;
+}
+
+.market-card.inmediata {
+  border-left-color: #e0be4d !important;
+}
+
+.market-card.defensa {
+  border-left-color: #62a8d8 !important;
+}
+
+.market-card.construcción {
+  border-left-color: #d78839 !important;
+  background: linear-gradient(135deg, #5d3d20, #252d20);
+}
+
+@keyframes shop-card-enter {
+  from {
+    opacity: 0;
+    transform: translateX(28px) rotateY(-12deg) scale(.94);
+  }
+}
+
+.building-slots {
+  overflow: visible;
+}
+
+.building-slots > .building-empty {
+  background:
+    repeating-linear-gradient(135deg, rgba(0,0,0,.035) 0 5px, transparent 5px 10px),
+    rgba(68, 75, 60, .08);
+  border: 1px dashed rgba(73, 84, 70, .34);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, .1);
+}
+
+.building-card {
+  overflow: hidden;
+  border: 2px solid #f0d17a !important;
+  border-radius: 5px;
+  transform: rotateX(3deg) translateZ(2px);
+  transform-origin: 50% 100%;
+  box-shadow:
+    0 3px 0 #533313,
+    0 7px 12px rgba(0, 0, 0, .3),
+    inset 0 0 14px rgba(255, 220, 126, .16);
+  transition:
+    transform .22s cubic-bezier(.2, .8, .2, 1.1),
+    box-shadow .22s ease,
+    filter .22s ease;
+  animation: build-card-enter .42s backwards cubic-bezier(.18, .9, .32, 1.15);
+}
+
+.building-card:hover {
+  z-index: 10;
+  filter: brightness(1.12) saturate(1.08);
+  transform: translateY(-4px) translateZ(28px) rotateX(0) scale(1.035);
+  box-shadow:
+    0 4px 0 #533313,
+    0 13px 18px rgba(0, 0, 0, .4),
+    0 0 14px rgba(235, 198, 85, .25);
+}
+
+.building-card > :not(.building-art) {
+  position: relative;
+  z-index: 2;
+}
+
+.building-art {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .2;
+  object-fit: cover;
+  filter: saturate(.75) contrast(1.15);
+  transform: scale(1.12);
+  transition: opacity .22s ease, transform .35s ease;
+}
+
+.building-card:hover .building-art {
+  opacity: .32;
+  transform: scale(1.02);
+}
+
+@keyframes build-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-24px) rotateX(18deg) scale(.88);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand-card,
+  .market-card,
+  .building-card {
+    animation: none;
+    transition-duration: .01ms;
+  }
+
+  .hand-card::after,
+  .market-card::after,
+  .building-card::after {
+    display: none;
+  }
+}

@@ -1533,10 +1533,16 @@ export default function Home() {
             <div className="building-slots">
               {[0, 1, 2, 3].map((slot) => {
                 const building = game.buildings[slot];
+                const buildingResource = building
+                  ? RESOURCE_CARDS.find((card) => card.name === building)
+                  : undefined;
                 return (
-                  <div className={building ? "occupied" : ""} key={slot}>
+                  <div className={building ? "occupied building-card" : "building-empty"} key={slot}>
                     {building ? (
                       <>
+                        {buildingResource && (
+                          <img className="building-art" src={buildingResource.image} alt="" />
+                        )}
                         <strong>{building}</strong>
                         <small>{buildingStatus(building)}</small>
                         {building === "Cisterna" && (
@@ -1639,7 +1645,11 @@ export default function Home() {
             <div className="panel-heading"><span>MERCADO</span><b>3 visibles</b></div>
             <div className={exchangeIndex !== null ? "market exchange-active" : "market"}>
               {game.market.map((card, index) => (
-                <button key={`${card.name}-${index}`} onClick={() => chooseMarket(index)}>
+                <button
+                  className={`market-card ${card.kind}`}
+                  key={`${card.name}-${index}`}
+                  onClick={() => chooseMarket(index)}
+                >
                   <img src={card.image} alt="" />
                   <span>{card.name}</span>
                   <small>{card.kind}</small>
