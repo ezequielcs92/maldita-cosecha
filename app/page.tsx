@@ -19,6 +19,7 @@ type Crop =
 
 type Action = "plantar" | "regar" | "cosechar" | "resolver";
 type CardKind = "defensa" | "inmediata" | "construcción";
+type MobileView = "field" | "cards" | "market" | "status";
 
 type ResourceCard = {
   name: string;
@@ -480,6 +481,7 @@ export default function Home() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
   const [cardAnimation, setCardAnimation] = useState<CardAnimation | null>(null);
+  const [mobileView, setMobileView] = useState<MobileView>("field");
 
   function tiltCard(event: ReactPointerEvent<HTMLElement>) {
     if (event.pointerType === "touch") return;
@@ -1550,7 +1552,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="dashboard">
+      <section className={`dashboard mobile-${mobileView}`}>
         <aside className="left-panel">
           <section className="panel objective-panel">
             <div className="panel-heading">
@@ -1832,6 +1834,27 @@ export default function Home() {
           </section>
         </aside>
       </section>
+
+      <nav className="mobile-nav" aria-label="Navegación de la partida">
+        {([
+          ["field", "▦", "Campo"],
+          ["cards", "▤", "Cartas"],
+          ["market", "◇", "Mercado"],
+          ["status", "◎", "Estado"],
+        ] as const).map(([view, icon, label]) => (
+          <button
+            className={mobileView === view ? "active" : ""}
+            aria-current={mobileView === view ? "page" : undefined}
+            onClick={() => setMobileView(view)}
+            key={view}
+          >
+            <b>{icon}</b>
+            <span>{label}</span>
+            {view === "cards" && <i>{currentHand.length}</i>}
+            {view === "market" && exchangeIndex !== null && <i>!</i>}
+          </button>
+        ))}
+      </nav>
 
       {cardAnimation && (
         <div

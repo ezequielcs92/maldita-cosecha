@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
+import PwaRegister from "./pwa-register";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,6 +13,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#183b25",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -29,9 +37,16 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Maldita Cosecha Digital",
     description,
+    manifest: "/manifest.webmanifest",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "Maldita Cosecha",
+    },
     icons: {
       icon: "/marcador-plagas.png",
       shortcut: "/marcador-plagas.png",
+      apple: "/icons/apple-touch-icon.png",
     },
     openGraph: {
       title: "Maldita Cosecha Digital",
@@ -60,7 +75,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        {children}
+        <PwaRegister />
+      </body>
     </html>
   );
 }
