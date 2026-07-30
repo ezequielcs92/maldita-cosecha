@@ -413,6 +413,26 @@ export default function Home() {
     }
   }, [game]);
 
+  useEffect(() => {
+    function handleKeyboard(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowRules(false);
+        setExchangeIndex(null);
+        return;
+      }
+      if (showRules || game?.pendingPlague || game?.status !== "playing") return;
+      const shortcuts: Record<string, Action> = {
+        "1": "plantar",
+        "2": "regar",
+        "3": "cosechar",
+        "4": "resolver",
+      };
+      if (shortcuts[event.key]) setAction(shortcuts[event.key]);
+    }
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, [game?.pendingPlague, game?.status, showRules]);
+
   const defense = useMemo(() => {
     if (!game?.pendingPlague) return null;
     for (let player = 0; player < game.hands.length; player += 1) {
@@ -745,6 +765,20 @@ export default function Home() {
     setGame(next);
   }
 
+  function plotIsActionable(plot: Plot) {
+    if (game?.pendingPlague || game?.status !== "playing") return false;
+    if (action === "plantar") {
+      return !plot.plant && !plot.damaged && !plot.blocked && plot.drought === 0;
+    }
+    if (action === "regar") {
+      return Boolean(plot.plant) && !plot.crow && !plot.damaged && !game.weedsActive && plot.water < plot.required;
+    }
+    if (action === "cosechar") {
+      return Boolean(plot.plant) && !plot.crow && !game.weedsActive && plot.water >= plot.required;
+    }
+    return plot.crow || plot.drought > 0 || plot.damaged;
+  }
+
   if (!game) {
     return (
       <main className="setup">
@@ -799,20 +833,35 @@ export default function Home() {
     <main className="game-shell">
       <header className="topbar">
         <button className="brand" onClick={() => setGame(null)} aria-label="Volver al inicio">
-          <b>MALDITA</b> COSECHA
+          <span><b>MALDITA</b> COSECHA</span>
+          <small>PROTOTIPO DIGITAL</small>
         </button>
         <div className="turn-pill">
-          <span>Turno</span>
-          <strong>Jugador {game.activePlayer + 1}</strong>
+          <span className="player-avatar">{game.activePlayer + 1}</span>
+          <div>
+            <small>TURNO ACTUAL</small>
+            <strong>Jugador {game.activePlayer + 1}</strong>
+          </div>
         </div>
-        <div className="cycle-track" aria-label={`Ciclo de plagas: ${game.cycle} de 4`}>
-          {[1, 2, 3, 4].map((step) => (
-            <span key={step} className={step <= game.cycle ? "done" : step === 4 ? "plague" : ""}>
-              {step === 4 ? "☠" : step}
-            </span>
-          ))}
+        <div className="cycle-hud">
+          <small>PRÓXIMA PLAGA</small>
+          <div className="cycle-track" aria-label={`Ciclo de plagas: ${game.cycle} de 4`}>
+            {[1, 2, 3, 4].map((step) => (
+              <span
+                key={step}
+                className={
+                  step <= game.cycle ? "done" : step === game.cycle + 1 ? "current" : step === 4 ? "plague" : ""
+                }
+              >
+                {step === 4 ? "☠" : step}
+              </span>
+            ))}
+          </div>
         </div>
-        <button className="icon-button" onClick={() => setShowRules(true)}>Cómo jugar</button>
+        <div className="top-actions">
+          <span className="season-stat"><small>PLAGAS</small><b>{remainingPlagues}</b></span>
+          <button className="icon-button" onClick={() => setShowRules(true)}>？ Guía</button>
+        </div>
       </header>
 
       <section className="dashboard">
@@ -872,6 +921,7 @@ export default function Home() {
                   plot.plant ? "planted" : "",
                   plot.damaged ? "damaged" : "",
                   plot.greenhouse ? "protected" : "",
+                  plotIsActionable(plot) ? "actionable" : "inactive",
                 ].join(" ")}
                 key={index}
                 onClick={() => tileAction(index)}
@@ -894,13 +944,15 @@ export default function Home() {
                 {plot.drought > 0 && <span className="obstacle">☀ {plot.drought}</span>}
                 {plot.blocked && <span className="obstacle">🐜</span>}
                 {plot.damaged && <span className="obstacle">⚡ DAÑADO</span>}
+                {plotIsActionable(plot) && <span className="plot-cta">{ACTION_LABELS[action]}</span>}
               </button>
             ))}
           </div>
 
           <div className="action-bar">
-            {(Object.keys(ACTION_LABELS) as Action[]).map((key) => (
+            {(Object.keys(ACTION_LABELS) as Action[]).map((key, index) => (
               <button className={action === key ? "active" : ""} onClick={() => setAction(key)} key={key}>
+                <kbd>{index + 1}</kbd>
                 <span>{key === "plantar" ? "✦" : key === "regar" ? "◉" : key === "cosechar" ? "♢" : "⚒"}</span>
                 {ACTION_LABELS[key]}
               </button>

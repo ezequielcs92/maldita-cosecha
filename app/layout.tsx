@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [
         {
-          url: new URL("/og.png", origin).toString(),
+          url: new URL("/og-v2.png", origin).toString(),
           width: 1536,
           height: 1024,
           alt: "Maldita Cosecha Digital",
@@ -50,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Maldita Cosecha Digital",
       description,
-      images: [new URL("/og.png", origin).toString()],
+      images: [new URL("/og-v2.png", origin).toString()],
     },
   };
 }
