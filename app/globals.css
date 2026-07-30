@@ -2843,3 +2843,352 @@ body {
     display: none;
   }
 }
+
+/* Portrait card-game presentation */
+.market {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  justify-items: center;
+  gap: 7px;
+  padding: 8px;
+  overflow: visible;
+}
+
+.market .market-card {
+  width: min(132px, 92%);
+  height: 100%;
+  max-height: 160px;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr) 27px 15px;
+  align-items: stretch;
+  padding: 5px;
+  color: #f7efcf;
+  background:
+    radial-gradient(circle at 50% 38%, #466149 0, #1a3424 76%);
+  border: 4px solid #876f3d !important;
+  border-radius: 12px 12px 9px 9px;
+  outline: 1px solid #161d17;
+  transform: rotateY(-3deg) translateZ(3px);
+  box-shadow:
+    0 3px 0 #312816,
+    0 7px 0 #101711,
+    0 11px 18px rgba(0,0,0,.48) !important;
+}
+
+.market .market-card::before {
+  inset: 2px;
+  border: 2px solid rgba(255, 233, 156, .35);
+  border-radius: 7px;
+}
+
+.market .market-card > img {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  border: 2px solid #e1c875;
+  border-radius: 7px 7px 45% 45% / 7px 7px 15% 15%;
+  box-shadow:
+    inset 0 0 0 2px rgba(39,27,14,.55),
+    0 2px 5px rgba(0,0,0,.35);
+}
+
+.market .market-card > span {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  margin: -5px -2px 0;
+  padding: 5px 2px 2px;
+  overflow: hidden;
+  color: #fff4c9;
+  background:
+    linear-gradient(90deg, #6b512b, #b58a43 50%, #6b512b);
+  border: 1px solid #e8ce79;
+  border-radius: 50% / 22%;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #1a1008;
+  font: 900 clamp(7px, .62vw, 10px)/1 Georgia, serif;
+}
+
+.market .market-card > small {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: center;
+  padding: 1px 2px 0;
+  color: #efcf69;
+  text-align: center;
+  font-size: 6px;
+  font-weight: 950;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.market .market-card.defensa {
+  border-color: #638aa7 !important;
+  background: radial-gradient(circle at 50% 35%, #385d6f, #162c35 78%);
+}
+
+.market .market-card.inmediata {
+  border-color: #a78b3e !important;
+}
+
+.market .market-card.construcción {
+  border-color: #a76b31 !important;
+  background: radial-gradient(circle at 50% 35%, #70471f, #302316 78%);
+}
+
+.market .market-card:hover {
+  transform: translateX(-10px) translateZ(45px) rotateY(5deg) scale(1.08);
+}
+
+.hand {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 0;
+  padding: 8px 18px 3px;
+  overflow: visible;
+}
+
+.hand .hand-card {
+  width: 122px;
+  height: 122px;
+  flex: 0 0 122px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 72px 50px;
+  margin-left: -11px;
+  overflow: visible;
+  color: #f8efd3;
+  background: linear-gradient(#385a40, #172c1d);
+  border: 4px solid #88713d;
+  border-radius: 12px 12px 9px 9px;
+  outline: 1px solid #0c170f;
+  box-shadow:
+    0 3px 0 #332917,
+    0 6px 0 #07110a,
+    0 10px 15px rgba(0,0,0,.5);
+}
+
+.hand .hand-card:first-child {
+  margin-left: 0;
+}
+
+.hand .hand-card::before {
+  inset: 2px;
+  border: 2px solid rgba(255,236,168,.3);
+  border-radius: 7px;
+}
+
+.hand .hand-card > img {
+  grid-column: 1;
+  grid-row: 1;
+  width: calc(100% - 8px);
+  height: 72px;
+  margin: 4px;
+  object-fit: cover;
+  border: 2px solid #d8bf70;
+  border-radius: 7px 7px 42% 42% / 7px 7px 16% 16%;
+  box-shadow: 0 2px 5px rgba(0,0,0,.4);
+}
+
+.hand .hand-card > div {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 9px 15px 22px;
+  gap: 0;
+  padding: 0 5px 4px;
+  background:
+    linear-gradient(rgba(36,58,40,.95), rgba(17,36,23,.98));
+  border-radius: 0 0 5px 5px;
+}
+
+.hand .hand-card small {
+  align-self: center;
+  overflow: hidden;
+  color: #e4ca6e;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 5px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.hand .hand-card strong {
+  align-self: center;
+  margin: 0 -2px;
+  overflow: hidden;
+  color: #fff4cd;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+  font: 900 8px/1 Georgia, serif;
+}
+
+.hand .hand-card p {
+  display: none;
+}
+
+.hand .card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  align-self: end;
+}
+
+.hand .card-actions button {
+  min-width: 0;
+  height: 18px;
+  padding: 1px 2px;
+  overflow: hidden;
+  border-radius: 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 5px;
+}
+
+.hand .hand-card:nth-child(1) {
+  transform: translateY(4px) rotateZ(-4deg) rotateY(3deg);
+}
+
+.hand .hand-card:nth-child(2) {
+  z-index: 2;
+  transform: translateY(-1px) rotateX(1deg);
+}
+
+.hand .hand-card:nth-child(3) {
+  transform: translateY(4px) rotateZ(4deg) rotateY(-3deg);
+}
+
+.hand .hand-card:hover {
+  z-index: 20;
+  transform: translateY(-20px) translateZ(55px) rotateX(3deg) rotateZ(0) scale(1.18);
+  box-shadow:
+    0 4px 0 #332917,
+    0 8px 0 #07110a,
+    0 22px 30px rgba(0,0,0,.58),
+    0 0 22px rgba(233,199,87,.28);
+}
+
+.hand .hand-card.defensa {
+  border-color: #638eae;
+  background: linear-gradient(#355d70, #172c35);
+}
+
+.hand .hand-card.inmediata {
+  border-color: #a98c3d;
+}
+
+.hand .hand-card.construcción {
+  border-color: #aa6c30;
+  background: linear-gradient(#74491e, #302316);
+}
+
+.building-slots {
+  gap: 9px;
+  padding: 9px;
+}
+
+.building-slots > .building-card {
+  min-height: 0;
+  padding: 5px 5px 7px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  border: 4px solid #a66d32 !important;
+  border-radius: 12px 12px 8px 8px;
+  outline: 1px solid #20170d;
+  background: linear-gradient(#75491f, #2f2215);
+  box-shadow:
+    0 3px 0 #40260f,
+    0 7px 11px rgba(0,0,0,.38);
+}
+
+.building-slots > .building-card::before {
+  inset: 2px;
+  border: 2px solid rgba(255,226,145,.32);
+  border-radius: 7px;
+}
+
+.building-slots .building-art {
+  inset: 5px 5px auto;
+  width: calc(100% - 10px);
+  height: 58%;
+  opacity: .88;
+  object-fit: cover;
+  filter: saturate(.9) contrast(1.05);
+  transform: none;
+  border: 2px solid #dec274;
+  border-radius: 7px 7px 42% 42% / 7px 7px 15% 15%;
+  box-shadow: 0 2px 5px rgba(0,0,0,.4);
+}
+
+.building-slots .building-card:hover .building-art {
+  opacity: 1;
+  transform: scale(1.025);
+}
+
+.building-slots .occupied strong {
+  width: calc(100% + 2px);
+  margin: 0 -1px 1px;
+  padding: 4px 2px;
+  color: #fff1bf;
+  background: linear-gradient(90deg, #61431e, #a47736 50%, #61431e);
+  border: 1px solid #dabf72;
+  border-radius: 50% / 24%;
+  text-shadow: 0 1px 2px #1a0e05;
+  font: 900 clamp(6px, .54vw, 9px)/1 Georgia, serif;
+}
+
+.building-slots .occupied small {
+  max-width: 100%;
+  overflow: hidden;
+  color: #efd77f;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 6px;
+}
+
+.building-slots .occupied button {
+  z-index: 3;
+  min-height: 16px;
+}
+
+@media (max-width: 1150px) {
+  .market .market-card {
+    width: min(112px, 92%);
+  }
+
+  .hand .hand-card {
+    width: 108px;
+    flex-basis: 108px;
+  }
+}
+
+@media (max-height: 720px) {
+  .market .market-card {
+    max-height: 142px;
+  }
+
+  .hand .hand-card {
+    height: 108px;
+    grid-template-rows: 62px 46px;
+  }
+
+  .hand .hand-card > img {
+    height: 62px;
+  }
+}
