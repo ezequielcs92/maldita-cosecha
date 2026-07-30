@@ -1629,6 +1629,36 @@ body {
   background: #2f7342;
 }
 
+.action-bar .no-targets:not(.active) {
+  color: #819087;
+  background: rgba(0, 0, 0, .12);
+}
+
+.action-bar .target-count {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  min-width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  color: #193821;
+  background: #e2c355;
+  border-radius: 10px;
+  font: 900 9px/1 Arial, sans-serif;
+}
+
+.action-bar .active .target-count {
+  color: #f9edbd;
+  background: #2f7342;
+}
+
+.action-bar .no-targets .target-count {
+  color: #b8c3bb;
+  background: #4f6155;
+}
+
 .action-hint {
   min-height: 0;
   height: 17px;
@@ -1978,17 +2008,19 @@ body {
   cursor: pointer;
 }
 
-.warehouse-chips button:disabled {
+.warehouse-chips button:disabled,
+.warehouse-chips button[aria-disabled="true"] {
   color: #d9e1d8;
   background: #3e5d47;
-  cursor: default;
+  cursor: help;
 }
 
-.card-actions button:disabled {
+.card-actions button:disabled,
+.card-actions button.unavailable {
   color: #8a9b8d;
   background: rgba(0,0,0,.2);
   border-color: #506557;
-  cursor: not-allowed;
+  cursor: help;
 }
 
 .game-toast {

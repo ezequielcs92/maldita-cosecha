@@ -573,6 +573,11 @@ export default function Home() {
     const next = cloneGame(game);
     const plot = next.field[index];
 
+    if (!plotIsActionableFor(plot, action)) {
+      setToast(plotActionReason(plot, action));
+      return;
+    }
+
     if (action === "plantar") {
       if (plot.plant || plot.damaged || plot.blocked || plot.drought > 0) return;
       if (next.compost) {
@@ -665,7 +670,7 @@ export default function Home() {
     if (card.kind === "defensa") {
       return {
         enabled: false,
-        reason: `Reacción automática: se habilita cuando aparece ${card.counters}.`,
+        reason: `Reacción: podrás elegirla cuando aparezca ${card.counters}.`,
       };
     }
     if (card.kind === "construcción" && game.buildings.length >= 4) {
@@ -1091,7 +1096,11 @@ export default function Home() {
   }
 
   function chooseMarket(index: number) {
-    if (!game || exchangeIndex === null || game.pendingPlague) return;
+    if (!game || game.pendingPlague) return;
+    if (exchangeIndex === null) {
+      setToast("Primero elegí Cambiar en una carta de tu mano.");
+      return;
+    }
     const next = cloneGame(game);
     const old = next.hands[next.activePlayer][exchangeIndex];
     const chosen = next.market[index];
@@ -1338,18 +1347,50 @@ export default function Home() {
     setGame(next);
   }
 
-  function plotIsActionable(plot: Plot) {
+  function plotIsActionableFor(plot: Plot, selectedAction: Action) {
     if (decision || game?.pendingPlague || game?.status !== "playing") return false;
-    if (action === "plantar") {
+    if (selectedAction === "plantar") {
       return !plot.plant && !plot.damaged && !plot.blocked && plot.drought === 0;
     }
-    if (action === "regar") {
+    if (selectedAction === "regar") {
       return Boolean(plot.plant) && !plot.crow && !plot.damaged && !game.weedsActive && plot.water < plot.required;
     }
-    if (action === "cosechar") {
+    if (selectedAction === "cosechar") {
       return Boolean(plot.plant) && !plot.crow && !game.weedsActive && plot.water >= plot.required;
     }
     return plot.crow || plot.drought > 0 || plot.damaged;
+  }
+
+  function plotIsActionable(plot: Plot) {
+    return plotIsActionableFor(plot, action);
+  }
+
+  function plotActionReason(plot: Plot, selectedAction: Action) {
+    if (selectedAction === "plantar") {
+      if (plot.plant) return "Ese terreno ya tiene una planta.";
+      if (plot.damaged) return "El terreno está dañado. Elegí Resolver antes de plantar.";
+      if (plot.blocked) return "Las Hormigas bloquean este terreno durante el ciclo.";
+      if (plot.drought > 0) return "Retirá la ficha de Sequía antes de plantar.";
+    }
+    if (selectedAction === "regar") {
+      if (game?.weedsActive) return "La Maleza impide regar durante este ciclo.";
+      if (!plot.plant) return "No hay una planta para regar en ese terreno.";
+      if (plot.crow) return "Los cuervos impiden regar. Elegí Resolver primero.";
+      if (plot.damaged) return "El terreno está dañado. Elegí Resolver primero.";
+      if (plot.water >= plot.required) return "Esta planta ya tiene toda el agua necesaria.";
+    }
+    if (selectedAction === "cosechar") {
+      if (game?.weedsActive) return "La Maleza impide cosechar durante este ciclo.";
+      if (!plot.plant) return "No hay una planta para cosechar en ese terreno.";
+      if (plot.crow) return "Los cuervos impiden cosechar. Elegí Resolver primero.";
+      if (plot.water < plot.required) {
+        return `La planta necesita ${plot.required - plot.water} ficha${plot.required - plot.water === 1 ? "" : "s"} más de Agua.`;
+      }
+    }
+    if (selectedAction === "resolver") {
+      return "Este terreno no tiene cuervos, Sequía ni daños que resolver.";
+    }
+    return "Esa acción no se puede realizar en este terreno.";
   }
 
   function buildingStatus(name: string) {
@@ -1412,6 +1453,15 @@ export default function Home() {
 
   const currentHand = game.hands[game.activePlayer];
   const remainingPlagues = game.plagueDeck.length + (game.pendingPlague ? 1 : 0);
+  const actionTargets = (Object.keys(ACTION_LABELS) as Action[]).reduce(
+    (counts, candidate) => {
+      counts[candidate] = game.field.filter((plot) =>
+        plotIsActionableFor(plot, candidate),
+      ).length;
+      return counts;
+    },
+    {} as Record<Action, number>,
+  );
 
   return (
     <main className="game-shell">
@@ -1553,10 +1603,26 @@ export default function Home() {
 
           <div className="action-bar">
             {(Object.keys(ACTION_LABELS) as Action[]).map((key, index) => (
-              <button className={action === key ? "active" : ""} onClick={() => setAction(key)} key={key}>
+              <button
+                className={[
+                  action === key ? "active" : "",
+                  actionTargets[key] === 0 ? "no-targets" : "",
+                ].join(" ")}
+                onClick={() => {
+                  setAction(key);
+                  if (actionTargets[key] === 0) {
+                    setToast(`Ahora mismo no hay terrenos disponibles para ${ACTION_LABELS[key].toLowerCase()}.`);
+                  }
+                }}
+                aria-pressed={action === key}
+                key={key}
+              >
                 <kbd>{index + 1}</kbd>
                 <span>{key === "plantar" ? "✦" : key === "regar" ? "◉" : key === "cosechar" ? "♢" : "⚒"}</span>
                 {ACTION_LABELS[key]}
+                <b className="target-count" aria-label={`${actionTargets[key]} terrenos disponibles`}>
+                  {actionTargets[key]}
+                </b>
               </button>
             ))}
           </div>
@@ -1592,10 +1658,10 @@ export default function Home() {
                   {game.warehouse.length ? game.warehouse.map((card, index) => (
                     <button
                       key={`${card.name}-warehouse-${index}`}
-                      disabled={card.kind === "defensa"}
+                      aria-disabled={card.kind === "defensa"}
                       title={
                         card.kind === "defensa"
-                          ? `Se activará automáticamente contra ${card.counters}.`
+                          ? `Podrás elegirla cuando aparezca ${card.counters}.`
                           : `Usar ${card.name} desde el Galpón`
                       }
                       onClick={() => useWarehouseCard(index)}
@@ -1619,7 +1685,8 @@ export default function Home() {
                       <p>{card.description}</p>
                       <div className="card-actions">
                         <button
-                          disabled={!availability.enabled}
+                          aria-disabled={!availability.enabled}
+                          className={!availability.enabled ? "unavailable" : ""}
                           title={availability.reason}
                           onClick={() => playCard(index)}
                         >
