@@ -62,6 +62,59 @@ type Game = {
   actions: number;
 };
 
+type CardSource =
+  | { kind: "hand"; index: number }
+  | { kind: "warehouse"; index: number };
+
+type Decision =
+  | { type: "greenhouse"; source: CardSource }
+  | { type: "tractor"; source: CardSource }
+  | {
+      type: "metamorphosis";
+      source: CardSource;
+      from: Crop;
+      to: Crop;
+      amount: number;
+    }
+  | { type: "forecast"; source: CardSource; cards: string[] }
+  | { type: "silo"; plotIndex: number; crop: Crop }
+  | { type: "compost"; plotIndex: number; crop: Crop }
+  | { type: "irrigation"; plotIndex: number; neighbors: number[] }
+  | {
+      type: "plague-plants";
+      plague: "Conejos";
+      count: number;
+      candidates: number[];
+      selected: number[];
+      roll: number;
+    }
+  | {
+      type: "plague-empty";
+      plague: "Hormigas";
+      count: number;
+      candidates: number[];
+      selected: number[];
+      roll: number;
+    }
+  | {
+      type: "plague-line";
+      plague: "Insectos" | "Gusanos";
+      options: number[];
+      selected?: number;
+    }
+  | {
+      type: "plague-crop";
+      plague: "Vecinos invasores";
+      options: Crop[];
+      protected: Crop[];
+      selected?: Crop;
+    }
+  | {
+      type: "plague-cistern";
+      plague: "Saltamontes" | "Sequía";
+      allocations: number[];
+    };
+
 const CROPS: Crop[] = [
   "Papa",
   "Zanahoria",
@@ -407,6 +460,7 @@ export default function Home() {
   const [showRules, setShowRules] = useState(false);
   const [hasSave, setHasSave] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [decision, setDecision] = useState<Decision | null>(null);
 
   useEffect(() => {
     setHasSave(Boolean(localStorage.getItem("maldita-cosecha-save")));
@@ -430,9 +484,10 @@ export default function Home() {
       if (event.key === "Escape") {
         setShowRules(false);
         setExchangeIndex(null);
+        if (!decision?.type.startsWith("plague-")) setDecision(null);
         return;
       }
-      if (showRules || game?.pendingPlague || game?.status !== "playing") return;
+      if (showRules || decision || game?.pendingPlague || game?.status !== "playing") return;
       const shortcuts: Record<string, Action> = {
         "1": "plantar",
         "2": "regar",
@@ -443,28 +498,29 @@ export default function Home() {
     }
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [game?.pendingPlague, game?.status, showRules]);
+  }, [decision, game?.pendingPlague, game?.status, showRules]);
 
-  const defense = useMemo(() => {
-    if (!game?.pendingPlague) return null;
+  const defenseOptions = useMemo(() => {
+    if (!game?.pendingPlague) return [];
+    const options: Array<{
+      player: number;
+      index: number;
+      card: ResourceCard;
+      warehouse: boolean;
+    }> = [];
     for (let player = 0; player < game.hands.length; player += 1) {
-      const index = game.hands[player].findIndex(
-        (card) => card.kind === "defensa" && card.counters === game.pendingPlague,
-      );
-      if (index >= 0) return { player, index, card: game.hands[player][index], warehouse: false };
+      game.hands[player].forEach((card, index) => {
+        if (card.kind === "defensa" && card.counters === game.pendingPlague) {
+          options.push({ player, index, card, warehouse: false });
+        }
+      });
     }
-    const warehouseIndex = game.warehouse.findIndex(
-      (card) => card.kind === "defensa" && card.counters === game.pendingPlague,
-    );
-    if (warehouseIndex >= 0) {
-      return {
-        player: -1,
-        index: warehouseIndex,
-        card: game.warehouse[warehouseIndex],
-        warehouse: true,
-      };
-    }
-    return null;
+    game.warehouse.forEach((card, index) => {
+      if (card.kind === "defensa" && card.counters === game.pendingPlague) {
+        options.push({ player: -1, index, card, warehouse: true });
+      }
+    });
+    return options;
   }, [game]);
 
   function resume() {
@@ -513,39 +569,32 @@ export default function Home() {
   }
 
   function tileAction(index: number) {
-    if (!game || game.status !== "playing" || game.pendingPlague) return;
+    if (!game || game.status !== "playing" || game.pendingPlague || decision) return;
     const next = cloneGame(game);
     const plot = next.field[index];
 
     if (action === "plantar") {
       if (plot.plant || plot.damaged || plot.blocked || plot.drought > 0) return;
-      const recovered = next.compost;
-      if (recovered) {
-        plot.plant = recovered;
-        next.compost = undefined;
-      } else {
-        if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
-        plot.plant = next.plantDeck.shift();
+      if (next.compost) {
+        setDecision({ type: "compost", plotIndex: index, crop: next.compost });
+        return;
       }
+      if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
+      plot.plant = next.plantDeck.shift();
       plot.water = 0;
       plot.required = 1;
-      concludeAction(
-        next,
-        recovered
-          ? `Jugador ${game.activePlayer + 1} recuperó ${recovered} de la Compostera y la plantó.`
-          : `Jugador ${game.activePlayer + 1} plantó en el terreno ${index + 1}.`,
-      );
+      concludeAction(next, `Jugador ${game.activePlayer + 1} plantó en el terreno ${index + 1}.`);
       return;
     }
 
     if (action === "regar") {
       if (!plot.plant || plot.crow || plot.damaged || next.weedsActive) return;
-      plot.water = Math.min(plot.required, plot.water + 1);
-      let extra = "";
       if (next.buildings.includes("Sistema de Riego") && !next.irrigationUsed) {
         const row = Math.floor(index / 3);
         const col = index % 3;
-        const neighbor = next.field.findIndex((other, otherIndex) => {
+        const neighbors = next.field
+          .map((other, otherIndex) => ({ other, otherIndex }))
+          .filter(({ other, otherIndex }) => {
           const r = Math.floor(otherIndex / 3);
           const c = otherIndex % 3;
           return (
@@ -555,14 +604,15 @@ export default function Home() {
             !other.crow &&
             other.water < other.required
           );
-        });
-        if (neighbor >= 0) {
-          next.field[neighbor].water += 1;
-          next.irrigationUsed = true;
-          extra = ` y activó el Sistema de Riego sobre el terreno ${neighbor + 1}`;
+          })
+          .map(({ otherIndex }) => otherIndex);
+        if (neighbors.length) {
+          setDecision({ type: "irrigation", plotIndex: index, neighbors });
+          return;
         }
       }
-      concludeAction(next, `Jugador ${game.activePlayer + 1} regó el terreno ${index + 1}${extra}.`);
+      plot.water = Math.min(plot.required, plot.water + 1);
+      concludeAction(next, `Jugador ${game.activePlayer + 1} regó el terreno ${index + 1}.`);
       return;
     }
 
@@ -571,8 +621,11 @@ export default function Home() {
       const crop = plot.plant;
       const siloCapacity = next.players <= 2 ? 1 : 2;
       const stored = Object.values(next.silo).reduce((sum, amount) => sum + amount, 0);
-      if (next.buildings.includes("Silo") && stored < siloCapacity) next.silo[crop] += 1;
-      else next.harvest[crop] += 1;
+      if (next.buildings.includes("Silo") && stored < siloCapacity) {
+        setDecision({ type: "silo", plotIndex: index, crop });
+        return;
+      }
+      next.harvest[crop] += 1;
       next.field[index] = { ...plot, plant: undefined, water: 0, required: 1, crow: false };
       concludeAction(next, `Jugador ${game.activePlayer + 1} cosechó ${crop}.`);
       return;
@@ -657,10 +710,6 @@ export default function Home() {
 
   function installBuilding(next: Game, card: ResourceCard) {
     next.buildings.push(card.name);
-    if (card.name === "Invernadero") {
-      const target = next.field.findIndex((plot) => plot.plant && !plot.greenhouse);
-      next.field[target >= 0 ? target : 4].greenhouse = true;
-    }
   }
 
   function applyImmediate(next: Game, card: ResourceCard) {
@@ -687,77 +736,88 @@ export default function Home() {
       });
       return `Lluvia regó ${watered} plantas y retiró ${drought} fichas de Sequía.`;
     }
-    if (card.name === "Tractor") {
-      const rows = [0, 1, 2].map((row) => ({
-        row,
-        free: [0, 1, 2].filter((col) => {
-          const plot = next.field[row * 3 + col];
-          return !plot.plant && !plot.damaged && !plot.blocked && !plot.drought;
-        }).length,
-      }));
-      const best = rows.sort((a, b) => b.free - a.free)[0].row;
-      let planted = 0;
-      [0, 1, 2].forEach((col) => {
-        const plot = next.field[best * 3 + col];
-        if (!plot.plant && !plot.damaged && !plot.blocked && !plot.drought) {
-          if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
-          plot.plant = next.plantDeck.shift();
-          planted += 1;
-        }
-      });
-      return `Tractor plantó ${planted} terrenos en la fila ${best + 1}.`;
-    }
-    if (card.name === "Metamorfosis") {
-      const target = [...CROPS].sort(
-        (a, b) =>
-          next.objective[b] - totalCrop(next, b) - (next.objective[a] - totalCrop(next, a)),
-      )[0];
-      const source = [...CROPS]
-        .filter((crop) => crop !== target)
-        .sort((a, b) => next.harvest[b] - next.harvest[a])[0];
-      const amount = Math.min(
-        3,
-        next.harvest[source],
-        Math.max(0, next.objective[target] - totalCrop(next, target)),
-      );
-      next.harvest[source] -= amount;
-      next.harvest[target] += amount;
-      return `Metamorfosis convirtió ${amount} ${source} en ${target}.`;
-    }
-    if (card.name === "Pronóstico Meteorológico") {
-      const severity: Record<string, number> = { Tornado: 10, Terremoto: 9 };
-      const nextThree = next.plagueDeck.splice(0, 3);
-      const ordered = nextThree.sort((a, b) => (severity[a] || 1) - (severity[b] || 1));
-      next.plagueDeck.unshift(...ordered);
-      return `Próximas Plagas: ${ordered.join(" → ")}. Las severas fueron alejadas.`;
-    }
     return `${card.name} fue utilizada.`;
   }
 
-  function playCard(index: number) {
-    if (!game || game.pendingPlague || game.status !== "playing") return;
-    const card = game.hands[game.activePlayer][index];
-    if (!card) return;
+  function consumeCard(next: Game, card: ResourceCard, source: CardSource) {
+    if (source.kind === "hand") {
+      if (card.kind === "inmediata") next.resourceDiscard.push(card);
+      replaceHandCard(next, next.activePlayer, source.index);
+      return;
+    }
+    next.warehouse.splice(source.index, 1);
+    if (card.kind === "inmediata") next.resourceDiscard.push(card);
+    const replacement = next.market.shift();
+    if (replacement) next.warehouse.push(replacement);
+    fillMarket(next);
+  }
+
+  function finishCard(next: Game, card: ResourceCard, source: CardSource, result: string) {
+    consumeCard(next, card, source);
+    setToast(result);
+    concludeAction(
+      next,
+      `Jugador ${game!.activePlayer + 1} ${
+        card.kind === "construcción" ? "construyó" : "usó"
+      } ${card.name}. ${result}`,
+    );
+  }
+
+  function beginCardUse(card: ResourceCard, source: CardSource) {
+    if (!game || decision) return;
     const availability = cardAvailability(card);
     if (!availability.enabled) {
       setToast(availability.reason);
       return;
     }
-    const next = cloneGame(game);
-
-    if (card.kind === "construcción") {
-      installBuilding(next, card);
-      replaceHandCard(next, next.activePlayer, index);
-      setToast(`${card.name} quedó activa como construcción compartida.`);
-      concludeAction(next, `Jugador ${game.activePlayer + 1} construyó ${card.name}.`);
+    if (card.name === "Invernadero") {
+      setDecision({ type: "greenhouse", source });
+      return;
+    }
+    if (card.name === "Tractor") {
+      setDecision({ type: "tractor", source });
+      return;
+    }
+    if (card.name === "Metamorfosis") {
+      const to = [...CROPS].sort(
+        (a, b) =>
+          game.objective[b] - totalCrop(game, b) - (game.objective[a] - totalCrop(game, a)),
+      )[0];
+      const from = [...CROPS]
+        .filter((crop) => crop !== to)
+        .sort((a, b) => game.harvest[b] - game.harvest[a])[0];
+      setDecision({
+        type: "metamorphosis",
+        source,
+        from,
+        to,
+        amount: Math.max(1, Math.min(3, game.harvest[from], game.objective[to] - totalCrop(game, to))),
+      });
+      return;
+    }
+    if (card.name === "Pronóstico Meteorológico") {
+      setDecision({
+        type: "forecast",
+        source,
+        cards: game.plagueDeck.slice(0, 3),
+      });
       return;
     }
 
-    const result = applyImmediate(next, card);
-    next.resourceDiscard.push(card);
-    replaceHandCard(next, next.activePlayer, index);
-    setToast(result);
-    concludeAction(next, `Jugador ${game.activePlayer + 1} usó ${card.name}. ${result}`);
+    const next = cloneGame(game);
+    if (card.kind === "construcción") {
+      installBuilding(next, card);
+      finishCard(next, card, source, `${card.name} quedó activa como construcción compartida.`);
+    } else {
+      const result = applyImmediate(next, card);
+      finishCard(next, card, source, result);
+    }
+  }
+
+  function playCard(index: number) {
+    if (!game || game.pendingPlague || game.status !== "playing") return;
+    const card = game.hands[game.activePlayer][index];
+    if (card) beginCardUse(card, { kind: "hand", index });
   }
 
   function storeInWarehouse(index: number) {
@@ -774,27 +834,7 @@ export default function Home() {
   function useWarehouseCard(index: number) {
     if (!game || game.pendingPlague) return;
     const card = game.warehouse[index];
-    if (!card) return;
-    const availability = cardAvailability(card);
-    if (!availability.enabled) {
-      setToast(availability.reason);
-      return;
-    }
-    const next = cloneGame(game);
-    next.warehouse.splice(index, 1);
-    if (card.kind === "construcción") {
-      installBuilding(next, card);
-      setToast(`${card.name} quedó activa como construcción compartida.`);
-    }
-    else {
-      const result = applyImmediate(next, card);
-      next.resourceDiscard.push(card);
-      setToast(result);
-    }
-    const replacement = next.market.shift();
-    if (replacement) next.warehouse.push(replacement);
-    fillMarket(next);
-    concludeAction(next, `Jugador ${game.activePlayer + 1} usó ${card.name} desde el Galpón.`);
+    if (card) beginCardUse(card, { kind: "warehouse", index });
   }
 
   function activateBuilding(name: string) {
@@ -807,6 +847,247 @@ export default function Home() {
     const next = cloneGame(game);
     next.cisternWater += 1;
     concludeAction(next, `Jugador ${game.activePlayer + 1} guardó 1 Agua en la Cisterna.`);
+  }
+
+  function cardFromSource(next: Game, source: CardSource) {
+    return source.kind === "hand"
+      ? next.hands[next.activePlayer][source.index]
+      : next.warehouse[source.index];
+  }
+
+  function chooseGreenhouse(plotIndex: number) {
+    if (!game || decision?.type !== "greenhouse" || game.field[plotIndex].greenhouse) return;
+    const next = cloneGame(game);
+    const card = cardFromSource(next, decision.source);
+    installBuilding(next, card);
+    next.field[plotIndex].greenhouse = true;
+    const result = `El terreno ${plotIndex + 1} quedó protegido por el Invernadero.`;
+    const source = decision.source;
+    setDecision(null);
+    finishCard(next, card, source, result);
+  }
+
+  function chooseTractor(orientation: "fila" | "columna", line: number) {
+    if (!game || decision?.type !== "tractor") return;
+    const next = cloneGame(game);
+    const card = cardFromSource(next, decision.source);
+    const indexes = [0, 1, 2].map((offset) =>
+      orientation === "fila" ? line * 3 + offset : offset * 3 + line,
+    );
+    let planted = 0;
+    indexes.forEach((index) => {
+      const plot = next.field[index];
+      if (!plot.plant && !plot.damaged && !plot.blocked && plot.drought === 0) {
+        if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
+        plot.plant = next.plantDeck.shift();
+        planted += 1;
+      }
+    });
+    const result = `Tractor plantó ${planted} terrenos en la ${orientation} ${line + 1}.`;
+    const source = decision.source;
+    setDecision(null);
+    finishCard(next, card, source, result);
+  }
+
+  function confirmMetamorphosis() {
+    if (!game || decision?.type !== "metamorphosis") return;
+    const next = cloneGame(game);
+    const card = cardFromSource(next, decision.source);
+    const amount = Math.min(
+      decision.amount,
+      next.harvest[decision.from],
+      Math.max(0, next.objective[decision.to] - totalCrop(next, decision.to)),
+    );
+    if (amount <= 0 || decision.from === decision.to) return;
+    next.harvest[decision.from] -= amount;
+    next.harvest[decision.to] += amount;
+    const result = `Metamorfosis convirtió ${amount} ${decision.from} en ${decision.to}.`;
+    const source = decision.source;
+    setDecision(null);
+    finishCard(next, card, source, result);
+  }
+
+  function moveForecast(index: number, direction: -1 | 1) {
+    if (decision?.type !== "forecast") return;
+    const target = index + direction;
+    if (target < 0 || target >= decision.cards.length) return;
+    const cards = [...decision.cards];
+    [cards[index], cards[target]] = [cards[target], cards[index]];
+    setDecision({ ...decision, cards });
+  }
+
+  function confirmForecast() {
+    if (!game || decision?.type !== "forecast") return;
+    const next = cloneGame(game);
+    const card = cardFromSource(next, decision.source);
+    next.plagueDeck.splice(0, decision.cards.length, ...decision.cards);
+    const result = `Nuevo orden: ${decision.cards.join(" → ")}.`;
+    const source = decision.source;
+    setDecision(null);
+    finishCard(next, card, source, result);
+  }
+
+  function confirmSilo(store: boolean) {
+    if (!game || decision?.type !== "silo") return;
+    const next = cloneGame(game);
+    const plot = next.field[decision.plotIndex];
+    if (store) next.silo[decision.crop] += 1;
+    else next.harvest[decision.crop] += 1;
+    next.field[decision.plotIndex] = {
+      ...plot,
+      plant: undefined,
+      water: 0,
+      required: 1,
+      crow: false,
+    };
+    const message = store
+      ? `${decision.crop} fue protegida dentro del Silo.`
+      : `${decision.crop} quedó en la Cosecha compartida.`;
+    setDecision(null);
+    concludeAction(next, message);
+  }
+
+  function confirmCompost(useCompost: boolean) {
+    if (!game || decision?.type !== "compost") return;
+    const next = cloneGame(game);
+    const plot = next.field[decision.plotIndex];
+    if (useCompost) {
+      plot.plant = decision.crop;
+      next.compost = undefined;
+    } else {
+      if (!next.plantDeck.length) next.plantDeck = makePlantDeck(next.mode);
+      plot.plant = next.plantDeck.shift();
+    }
+    plot.water = 0;
+    plot.required = 1;
+    const message = useCompost
+      ? `Se recuperó ${decision.crop} desde la Compostera.`
+      : `Se plantó una carta oculta y ${decision.crop} permanece en la Compostera.`;
+    setDecision(null);
+    concludeAction(next, message);
+  }
+
+  function confirmIrrigation(neighbor?: number) {
+    if (!game || decision?.type !== "irrigation") return;
+    const next = cloneGame(game);
+    next.field[decision.plotIndex].water = Math.min(
+      next.field[decision.plotIndex].required,
+      next.field[decision.plotIndex].water + 1,
+    );
+    let message = `Se regó el terreno ${decision.plotIndex + 1}.`;
+    if (neighbor !== undefined && decision.neighbors.includes(neighbor)) {
+      next.field[neighbor].water = Math.min(
+        next.field[neighbor].required,
+        next.field[neighbor].water + 1,
+      );
+      next.irrigationUsed = true;
+      message = `Sistema de Riego regó los terrenos ${decision.plotIndex + 1} y ${neighbor + 1}.`;
+    }
+    setDecision(null);
+    concludeAction(next, message);
+  }
+
+  function togglePlagueTarget(index: number) {
+    if (
+      decision?.type !== "plague-plants" &&
+      decision?.type !== "plague-empty"
+    ) return;
+    const selected = decision.selected.includes(index)
+      ? decision.selected.filter((value) => value !== index)
+      : decision.selected.length < decision.count
+        ? [...decision.selected, index]
+        : decision.selected;
+    setDecision({ ...decision, selected });
+  }
+
+  function toggleProtectedCrop(crop: Crop) {
+    if (decision?.type !== "plague-crop" || !game?.buildings.includes("Cercado")) return;
+    const protectedCrops = decision.protected.includes(crop)
+      ? decision.protected.filter((value) => value !== crop)
+      : decision.protected.length < 2
+        ? [...decision.protected, crop]
+        : decision.protected;
+    setDecision({
+      ...decision,
+      protected: protectedCrops,
+      selected: protectedCrops.includes(decision.selected as Crop) ? undefined : decision.selected,
+    });
+  }
+
+  function allocateCistern(index: number, delta: -1 | 1) {
+    if (!game || decision?.type !== "plague-cistern") return;
+    const allocations = [...decision.allocations];
+    const total = allocations.reduce((sum, amount) => sum + amount, 0);
+    const plot = game.field[index];
+    if (
+      delta === 1 &&
+      (total >= game.cisternWater ||
+        !plot.plant ||
+        plot.water + allocations[index] >= plot.required)
+    ) return;
+    if (delta === -1 && allocations[index] <= 0) return;
+    allocations[index] += delta;
+    setDecision({ ...decision, allocations });
+  }
+
+  function finishManualPlague(next: Game, plague: string) {
+    next.pendingPlague = undefined;
+    next.log.unshift(`${plague} fue resuelta mediante una decisión del equipo.`);
+    if (!next.plagueDeck.length && !objectiveComplete(next)) next.status = "lost";
+    setDecision(null);
+    setGame(next);
+  }
+
+  function confirmPlagueDecision() {
+    if (!game || !decision) return;
+    const next = cloneGame(game);
+    next.field.forEach((plot) => {
+      plot.blocked = false;
+    });
+    next.weedsActive = false;
+    next.irrigationUsed = false;
+
+    if (decision.type === "plague-plants") {
+      if (decision.selected.length !== decision.count) return;
+      removePlants(next, decision.selected);
+      setToast(`Conejos eliminó ${decision.selected.length} plantas elegidas.`);
+      finishManualPlague(next, decision.plague);
+    } else if (decision.type === "plague-empty") {
+      if (decision.selected.length !== decision.count) return;
+      decision.selected.forEach((index) => {
+        next.field[index].blocked = true;
+      });
+      setToast(`Hormigas bloqueó ${decision.selected.length} terrenos elegidos.`);
+      finishManualPlague(next, decision.plague);
+    } else if (decision.type === "plague-line") {
+      if (decision.selected === undefined) return;
+      const indexes = [0, 1, 2].map((offset) =>
+        decision.plague === "Insectos"
+          ? offset * 3 + decision.selected!
+          : decision.selected! * 3 + offset,
+      );
+      removePlants(next, indexes);
+      setToast(`${decision.plague} atacó la ${decision.plague === "Insectos" ? "columna" : "fila"} ${decision.selected + 1}.`);
+      finishManualPlague(next, decision.plague);
+    } else if (decision.type === "plague-crop") {
+      const allProtected = decision.options.every((crop) => decision.protected.includes(crop));
+      if (!decision.selected && !allProtected) return;
+      if (decision.selected) next.harvest[decision.selected] -= 1;
+      setToast(
+        decision.selected
+          ? `Vecinos invasores robó 1 ${decision.selected}.`
+          : "El Cercado protegió toda la Cosecha disponible.",
+      );
+      finishManualPlague(next, decision.plague);
+    } else if (decision.type === "plague-cistern") {
+      const total = decision.allocations.reduce((sum, amount) => sum + amount, 0);
+      decision.allocations.forEach((amount, index) => {
+        next.field[index].water += amount;
+      });
+      next.cisternWater -= total;
+      setToast(`La Cisterna distribuyó ${total} fichas y conservó ${next.cisternWater}.`);
+      finishManualPlague(next, decision.plague);
+    }
   }
 
   function chooseMarket(index: number) {
@@ -822,7 +1103,7 @@ export default function Home() {
     concludeAction(next, `Jugador ${game.activePlayer + 1} cambió un Recurso.`);
   }
 
-  function useDefense() {
+  function useDefense(defense: (typeof defenseOptions)[number]) {
     if (!game?.pendingPlague || !defense) return;
     const next = cloneGame(game);
     let used: ResourceCard;
@@ -865,21 +1146,82 @@ export default function Home() {
     }
   }
 
-  function redistributeCistern(next: Game) {
-    if (!next.buildings.includes("Cisterna") || next.cisternWater <= 0) return;
-    let distributed = 0;
-    for (const plot of next.field) {
-      while (plot.plant && plot.water < plot.required && next.cisternWater > 0) {
-        plot.water += 1;
-        next.cisternWater -= 1;
-        distributed += 1;
+  function resolvePlague() {
+    if (!game?.pendingPlague || decision) return;
+    const revealed = game.pendingPlague;
+    if (revealed === "Conejos") {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      const candidates = game.field
+        .map((plot, index) => ({ plot, index }))
+        .filter(({ plot }) => plot.plant && damageable(plot))
+        .map(({ index }) => index);
+      const reduced = Math.max(
+        game.buildings.includes("Cercado") ? 1 : 0,
+        roll - (game.buildings.includes("Cercado") ? 2 : 0),
+      );
+      const count = Math.min(reduced, candidates.length);
+      if (count > 0) {
+        setDecision({
+          type: "plague-plants",
+          plague: "Conejos",
+          count,
+          candidates,
+          selected: [],
+          roll,
+        });
+        return;
       }
     }
-    if (distributed) next.log.unshift(`La Cisterna devolvió ${distributed} fichas de Agua.`);
-  }
-
-  function resolvePlague() {
-    if (!game?.pendingPlague) return;
+    if (revealed === "Hormigas") {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      const candidates = game.field
+        .map((plot, index) => ({ plot, index }))
+        .filter(({ plot }) => !plot.plant && !plot.greenhouse)
+        .map(({ index }) => index);
+      const count = Math.min(roll, candidates.length);
+      if (count > 0) {
+        setDecision({
+          type: "plague-empty",
+          plague: "Hormigas",
+          count,
+          candidates,
+          selected: [],
+          roll,
+        });
+        return;
+      }
+    }
+    if (revealed === "Insectos" || revealed === "Gusanos") {
+      const lines = [0, 1, 2].map((line) => ({
+        line,
+        amount: [0, 1, 2].filter((offset) => {
+          const index = revealed === "Insectos" ? offset * 3 + line : line * 3 + offset;
+          return Boolean(game.field[index].plant);
+        }).length,
+      }));
+      const maximum = Math.max(...lines.map((line) => line.amount));
+      const options = lines.filter((line) => line.amount === maximum).map((line) => line.line);
+      if (maximum > 0 && options.length > 1) {
+        setDecision({
+          type: "plague-line",
+          plague: revealed,
+          options,
+        });
+        return;
+      }
+    }
+    if (revealed === "Vecinos invasores") {
+      const options = CROPS.filter((crop) => game.harvest[crop] > 0);
+      if (options.length) {
+        setDecision({
+          type: "plague-crop",
+          plague: "Vecinos invasores",
+          options,
+          protected: [],
+        });
+        return;
+      }
+    }
     const next = cloneGame(game);
     const plague = next.pendingPlague;
     const vulnerable = () =>
@@ -938,7 +1280,14 @@ export default function Home() {
         if (plot.water === 0) plot.required = 2;
         plot.water = 0;
       });
-      redistributeCistern(next);
+      if (
+        next.cisternWater > 0 &&
+        next.field.some((plot) => plot.plant && plot.water < plot.required)
+      ) {
+        setGame(next);
+        setDecision({ type: "plague-cistern", plague: "Saltamontes", allocations: Array(9).fill(0) });
+        return;
+      }
     } else if (plague === "Helada") {
       removePlants(
         next,
@@ -971,7 +1320,14 @@ export default function Home() {
         if (plot.plant) plot.water = 0;
         else if (!plot.greenhouse) plot.drought += 1;
       });
-      redistributeCistern(next);
+      if (
+        next.cisternWater > 0 &&
+        next.field.some((plot) => plot.plant && plot.water < plot.required)
+      ) {
+        setGame(next);
+        setDecision({ type: "plague-cistern", plague: "Sequía", allocations: Array(9).fill(0) });
+        return;
+      }
     } else if (plague === "Maleza") {
       next.weedsActive = true;
     }
@@ -983,7 +1339,7 @@ export default function Home() {
   }
 
   function plotIsActionable(plot: Plot) {
-    if (game?.pendingPlague || game?.status !== "playing") return false;
+    if (decision || game?.pendingPlague || game?.status !== "playing") return false;
     if (action === "plantar") {
       return !plot.plant && !plot.damaged && !plot.blocked && plot.drought === 0;
     }
@@ -1305,21 +1661,377 @@ export default function Home() {
             <div>
               <h2>{game.pendingPlague}</h2>
               <p>{PLAGUE_INFO[game.pendingPlague].text}</p>
-              {defense ? (
+              {defenseOptions.length ? (
                 <div className="defense-found">
-                  <span>
-                    Defensa disponible · {defense.warehouse ? "Galpón compartido" : `Jugador ${defense.player + 1}`}
-                  </span>
-                  <strong>{defense.card.name}</strong>
+                  <span>Elegí qué copia utilizar</span>
+                  <div className="defense-options">
+                    {defenseOptions.map((option) => (
+                      <button
+                        key={`${option.warehouse ? "warehouse" : option.player}-${option.index}`}
+                        onClick={() => useDefense(option)}
+                      >
+                        <strong>{option.card.name}</strong>
+                        <small>
+                          {option.warehouse ? "Galpón compartido" : `Jugador ${option.player + 1}`}
+                        </small>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="no-defense">No hay una defensa válida en las manos.</div>
               )}
               <div className="modal-actions">
-                {defense && <button className="primary" onClick={useDefense}>Usar defensa</button>}
                 <button className="danger-button" onClick={resolvePlague}>Resolver efecto</button>
               </div>
             </div>
+          </section>
+        </div>
+      )}
+
+      {decision && (
+        <div className="modal-backdrop decision-backdrop">
+          <section className="decision-modal">
+            <div className="decision-heading">
+              <span>DECISIÓN DEL EQUIPO</span>
+              {!decision.type.startsWith("plague-") && (
+                <button onClick={() => setDecision(null)} aria-label="Cancelar decisión">×</button>
+              )}
+            </div>
+
+            {decision.type === "greenhouse" && (
+              <>
+                <h2>¿Qué terreno protege el Invernadero?</h2>
+                <p>La protección será permanente durante toda la partida.</p>
+                <div className="decision-field">
+                  {game.field.map((plot, index) => (
+                    <button
+                      key={index}
+                      disabled={plot.greenhouse}
+                      className={plot.plant ? "has-plant" : ""}
+                      onClick={() => chooseGreenhouse(index)}
+                    >
+                      <b>{index + 1}</b>
+                      <span>{plot.greenhouse ? "Protegido" : plot.plant ? "Con planta" : "Vacío"}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {decision.type === "tractor" && (
+              <>
+                <h2>Elegí una fila o columna</h2>
+                <p>El Tractor plantará todos sus terrenos libres y habilitados.</p>
+                <div className="line-options">
+                  {(["fila", "columna"] as const).flatMap((orientation) =>
+                    [0, 1, 2].map((line) => {
+                      const indexes = [0, 1, 2].map((offset) =>
+                        orientation === "fila" ? line * 3 + offset : offset * 3 + line,
+                      );
+                      const free = indexes.filter((index) => {
+                        const plot = game.field[index];
+                        return !plot.plant && !plot.damaged && !plot.blocked && plot.drought === 0;
+                      }).length;
+                      return (
+                        <button
+                          key={`${orientation}-${line}`}
+                          disabled={!free}
+                          onClick={() => chooseTractor(orientation, line)}
+                        >
+                          <small>{orientation}</small>
+                          <strong>{line + 1}</strong>
+                          <span>{free} libres</span>
+                        </button>
+                      );
+                    }),
+                  )}
+                </div>
+              </>
+            )}
+
+            {decision.type === "metamorphosis" && (
+              <>
+                <h2>Transformar la cosecha</h2>
+                <p>Elegí qué cultivo entregar, cuál recibir y la cantidad.</p>
+                <div className="metamorph-controls">
+                  <label>
+                    Entregar
+                    <select
+                      value={decision.from}
+                      onChange={(event) =>
+                        setDecision({ ...decision, from: event.target.value as Crop, amount: 1 })
+                      }
+                    >
+                      {CROPS.filter((crop) => crop !== decision.to && game.harvest[crop] > 0).map((crop) => (
+                        <option value={crop} key={crop}>{crop} · {game.harvest[crop]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <span className="transform-arrow">→</span>
+                  <label>
+                    Recibir
+                    <select
+                      value={decision.to}
+                      onChange={(event) =>
+                        setDecision({ ...decision, to: event.target.value as Crop, amount: 1 })
+                      }
+                    >
+                      {CROPS.filter(
+                        (crop) => crop !== decision.from && totalCrop(game, crop) < game.objective[crop],
+                      ).map((crop) => (
+                        <option value={crop} key={crop}>
+                          {crop} · faltan {game.objective[crop] - totalCrop(game, crop)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="amount-picker">
+                  {[1, 2, 3].map((amount) => {
+                    const allowed =
+                      amount <= game.harvest[decision.from] &&
+                      amount <= game.objective[decision.to] - totalCrop(game, decision.to);
+                    return (
+                      <button
+                        key={amount}
+                        disabled={!allowed}
+                        className={decision.amount === amount ? "selected" : ""}
+                        onClick={() => setDecision({ ...decision, amount })}
+                      >
+                        {amount}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button className="primary decision-confirm" onClick={confirmMetamorphosis}>
+                  Confirmar transformación
+                </button>
+              </>
+            )}
+
+            {decision.type === "forecast" && (
+              <>
+                <h2>Reordenar las próximas Plagas</h2>
+                <p>La carta superior será la número 1.</p>
+                <div className="forecast-list">
+                  {decision.cards.map((plague, index) => (
+                    <div key={`${plague}-${index}`}>
+                      <b>{index + 1}</b>
+                      <img src={PLAGUE_INFO[plague].image} alt="" />
+                      <strong>{plague}</strong>
+                      <span>
+                        <button disabled={index === 0} onClick={() => moveForecast(index, -1)}>↑</button>
+                        <button disabled={index === decision.cards.length - 1} onClick={() => moveForecast(index, 1)}>↓</button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button className="primary decision-confirm" onClick={confirmForecast}>
+                  Confirmar orden
+                </button>
+              </>
+            )}
+
+            {decision.type === "silo" && (
+              <>
+                <h2>¿Dónde guardar {decision.crop}?</h2>
+                <p>El Silo la protege de las Plagas, pero no podrá usarse con Metamorfosis.</p>
+                <div className="choice-cards">
+                  <button onClick={() => confirmSilo(true)}>
+                    <strong>Guardar en el Silo</strong>
+                    <span>Protegida y válida para el Objetivo</span>
+                  </button>
+                  <button onClick={() => confirmSilo(false)}>
+                    <strong>Dejar en la Cosecha</strong>
+                    <span>Expuesta, pero disponible para Metamorfosis</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {decision.type === "compost" && (
+              <>
+                <h2>La Compostera guarda {decision.crop}</h2>
+                <p>Podés recuperarla ahora o conservarla para otro terreno.</p>
+                <div className="choice-cards">
+                  <button onClick={() => confirmCompost(true)}>
+                    <strong>Recuperar {decision.crop}</strong>
+                    <span>Sabés exactamente qué estás plantando</span>
+                  </button>
+                  <button onClick={() => confirmCompost(false)}>
+                    <strong>Plantar del mazo</strong>
+                    <span>Conservar {decision.crop} en la Compostera</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {decision.type === "irrigation" && (
+              <>
+                <h2>Activar Sistema de Riego</h2>
+                <p>Elegí una planta ortogonalmente adyacente o conservá el uso para más adelante.</p>
+                <div className="choice-cards irrigation-choices">
+                  {decision.neighbors.map((index) => (
+                    <button key={index} onClick={() => confirmIrrigation(index)}>
+                      <strong>Regar terreno {index + 1}</strong>
+                      <span>Regará también el terreno {decision.plotIndex + 1}</span>
+                    </button>
+                  ))}
+                  <button onClick={() => confirmIrrigation()}>
+                    <strong>Regar sólo el terreno {decision.plotIndex + 1}</strong>
+                    <span>Conservar el Sistema de Riego para otra acción</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {(decision.type === "plague-plants" || decision.type === "plague-empty") && (
+              <>
+                <h2>
+                  {decision.plague}: elegí {decision.count}{" "}
+                  {decision.type === "plague-plants" ? "plantas" : "terrenos"}
+                </h2>
+                <p>
+                  El dado mostró {decision.roll}. Seleccionados: {decision.selected.length}/{decision.count}.
+                </p>
+                <div className="decision-field plague-targets">
+                  {game.field.map((plot, index) => {
+                    const valid = decision.candidates.includes(index);
+                    const selected = decision.selected.includes(index);
+                    return (
+                      <button
+                        key={index}
+                        disabled={!valid}
+                        className={selected ? "selected" : ""}
+                        onClick={() => togglePlagueTarget(index)}
+                      >
+                        <b>{index + 1}</b>
+                        <span>{selected ? "Elegido" : valid ? "Disponible" : "No válido"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  className="danger-button decision-confirm"
+                  disabled={decision.selected.length !== decision.count}
+                  onClick={confirmPlagueDecision}
+                >
+                  Resolver {decision.plague}
+                </button>
+              </>
+            )}
+
+            {decision.type === "plague-line" && (
+              <>
+                <h2>{decision.plague}: hay un empate</h2>
+                <p>
+                  Elegí la {decision.plague === "Insectos" ? "columna" : "fila"} que será afectada.
+                </p>
+                <div className="line-options plague-lines">
+                  {decision.options.map((line) => (
+                    <button
+                      key={line}
+                      className={decision.selected === line ? "selected" : ""}
+                      onClick={() => setDecision({ ...decision, selected: line })}
+                    >
+                      <small>{decision.plague === "Insectos" ? "columna" : "fila"}</small>
+                      <strong>{line + 1}</strong>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="danger-button decision-confirm"
+                  disabled={decision.selected === undefined}
+                  onClick={confirmPlagueDecision}
+                >
+                  Confirmar objetivo
+                </button>
+              </>
+            )}
+
+            {decision.type === "plague-crop" && (
+              <>
+                <h2>Vecinos invasores atacan la Cosecha</h2>
+                <p>
+                  {game.buildings.includes("Cercado")
+                    ? "Primero podés proteger hasta 2 tipos de cultivo con el Cercado. Después elegí qué cultivo será robado."
+                    : "Elegí qué cultivo perderá el equipo."}
+                </p>
+                {game.buildings.includes("Cercado") && (
+                  <div className="crop-decisions">
+                    <small>PROTEGER CON EL CERCADO · {decision.protected.length}/2</small>
+                    <div>
+                      {decision.options.map((crop) => (
+                        <button
+                          key={`protect-${crop}`}
+                          className={decision.protected.includes(crop) ? "protected" : ""}
+                          onClick={() => toggleProtectedCrop(crop)}
+                        >
+                          <img src={CROP_IMAGES[crop]} alt="" />
+                          <span>{crop}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="crop-decisions loss">
+                  <small>CULTIVO ROBADO</small>
+                  <div>
+                    {decision.options.map((crop) => (
+                      <button
+                        key={`lose-${crop}`}
+                        disabled={decision.protected.includes(crop)}
+                        className={decision.selected === crop ? "selected" : ""}
+                        onClick={() => setDecision({ ...decision, selected: crop })}
+                      >
+                        <img src={CROP_IMAGES[crop]} alt="" />
+                        <span>{crop} · {game.harvest[crop]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  className="danger-button decision-confirm"
+                  disabled={
+                    !decision.selected &&
+                    !decision.options.every((crop) => decision.protected.includes(crop))
+                  }
+                  onClick={confirmPlagueDecision}
+                >
+                  Confirmar resolución
+                </button>
+              </>
+            )}
+
+            {decision.type === "plague-cistern" && (
+              <>
+                <h2>Distribuir el Agua de la Cisterna</h2>
+                <p>
+                  Asigná hasta {game.cisternWater} fichas después de {decision.plague}. El Agua no utilizada permanecerá guardada.
+                </p>
+                <div className="cistern-grid">
+                  {game.field.map((plot, index) => {
+                    const allocation = decision.allocations[index];
+                    const valid = Boolean(plot.plant) && plot.water + allocation < plot.required;
+                    return (
+                      <div className={plot.plant ? "valid" : ""} key={index}>
+                        <b>Terreno {index + 1}</b>
+                        <span>{plot.plant ? `${plot.water + allocation}/${plot.required} Agua` : "Vacío"}</span>
+                        <div>
+                          <button disabled={!allocation} onClick={() => allocateCistern(index, -1)}>−</button>
+                          <strong>{allocation}</strong>
+                          <button disabled={!valid} onClick={() => allocateCistern(index, 1)}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button className="primary decision-confirm" onClick={confirmPlagueDecision}>
+                  Confirmar distribución
+                </button>
+              </>
+            )}
           </section>
         </div>
       )}
