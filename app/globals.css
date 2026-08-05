@@ -133,6 +133,12 @@ button:focus-visible {
   background: #fff;
 }
 
+.stepper {
+  width: fit-content;
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+}
+
 .stepper button,
 .mode-switch button {
   border: 0;
@@ -141,8 +147,18 @@ button:focus-visible {
   padding: 0 16px;
 }
 
+.stepper button {
+  width: 48px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 900;
+}
+
 .stepper strong {
-  min-width: 46px;
+  width: 48px;
+  min-width: 48px;
   display: grid;
   place-items: center;
   border-inline: 1px solid var(--line);
