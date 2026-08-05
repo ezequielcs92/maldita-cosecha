@@ -349,13 +349,31 @@ function emptyHarvest(): Record<Crop, number> {
   return Object.fromEntries(CROPS.map((crop) => [crop, 0])) as Record<Crop, number>;
 }
 
+const OBJECTIVE_PATTERNS = {
+  short: [
+    [1, 1, 1, 1, 1, 1, 1, 1],
+    [2, 2, 2, 2],
+    [3, 2, 2, 1],
+    [3, 3, 1, 1],
+  ],
+  long: [
+    [2, 2, 2, 2, 1, 1, 1, 1],
+    [2, 2, 2, 2, 2, 2],
+    [3, 3, 3, 3],
+    [3, 3, 2, 2, 1, 1],
+  ],
+} as const;
+
 function objectiveFor(players: number): Record<Crop, number> {
-  const target = players <= 2 ? 8 : 12;
   const result = emptyHarvest();
-  const pool = shuffle([...CROPS]);
-  for (let i = 0; i < target; i += 1) {
-    result[pool[i % pool.length]] += 1;
-  }
+  const patterns = players <= 2 ? OBJECTIVE_PATTERNS.short : OBJECTIVE_PATTERNS.long;
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+  const crops = shuffle([...CROPS]);
+
+  pattern.forEach((amount, index) => {
+    result[crops[index]] = amount;
+  });
+
   return result;
 }
 
