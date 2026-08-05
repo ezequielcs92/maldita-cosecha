@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -20,6 +21,27 @@ type Crop =
 type Action = "plantar" | "regar" | "cosechar" | "resolver";
 type CardKind = "defensa" | "inmediata" | "construcción";
 type MobileView = "field" | "cards" | "market" | "status";
+type SoundCue =
+  | "tap"
+  | "start"
+  | "plant"
+  | "water"
+  | "harvest"
+  | "repair"
+  | "card"
+  | "build"
+  | "draw"
+  | "plague"
+  | "defense"
+  | "win"
+  | "lose"
+  | "error";
+type FieldEffect = {
+  kind: "plant" | "water" | "harvest" | "repair";
+  index: number;
+  id: number;
+};
+type ScreenEffect = { kind: "plague" | "harvest" | "card" | "win" | "lose"; id: number };
 
 type ResourceCard = {
   name: string;
@@ -500,6 +522,97 @@ export default function Home() {
   const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
   const [cardAnimation, setCardAnimation] = useState<CardAnimation | null>(null);
   const [mobileView, setMobileView] = useState<MobileView>("field");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [fieldEffect, setFieldEffect] = useState<FieldEffect | null>(null);
+  const [screenEffect, setScreenEffect] = useState<ScreenEffect | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  function playSound(cue: SoundCue, force = false) {
+    if ((!soundEnabled && !force) || typeof window === "undefined") return;
+    const AudioContextConstructor =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+
+    const context = audioContextRef.current ?? new AudioContextConstructor();
+    audioContextRef.current = context;
+    if (context.state === "suspended") void context.resume();
+    const now = context.currentTime;
+    const master = context.createGain();
+    master.gain.setValueAtTime(.0001, now);
+    master.gain.exponentialRampToValueAtTime(.18, now + .012);
+    master.gain.exponentialRampToValueAtTime(.0001, now + 1.1);
+    master.connect(context.destination);
+
+    const tone = (
+      frequency: number,
+      delay: number,
+      duration: number,
+      type: OscillatorType = "sine",
+      volume = .45,
+      endFrequency = frequency,
+    ) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, now + delay);
+      oscillator.frequency.exponentialRampToValueAtTime(
+        Math.max(20, endFrequency),
+        now + delay + duration,
+      );
+      gain.gain.setValueAtTime(.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(volume, now + delay + .01);
+      gain.gain.exponentialRampToValueAtTime(.0001, now + delay + duration);
+      oscillator.connect(gain);
+      gain.connect(master);
+      oscillator.start(now + delay);
+      oscillator.stop(now + delay + duration + .02);
+    };
+
+    const sequences: Record<SoundCue, () => void> = {
+      tap: () => tone(420, 0, .08, "sine", .22, 520),
+      start: () => [262, 330, 392, 523].forEach((note, index) => tone(note, index * .07, .28, "triangle", .26)),
+      plant: () => {
+        tone(150, 0, .16, "sine", .34, 105);
+        tone(330, .08, .28, "triangle", .28, 520);
+      },
+      water: () => [680, 520, 760].forEach((note, index) => tone(note, index * .065, .16, "sine", .2, note * .72)),
+      harvest: () => [392, 523, 659, 784].forEach((note, index) => tone(note, index * .055, .35, "triangle", .25)),
+      repair: () => {
+        tone(105, 0, .12, "square", .18, 82);
+        tone(210, .1, .2, "triangle", .22, 310);
+      },
+      card: () => [330, 494, 659].forEach((note, index) => tone(note, index * .045, .28, "triangle", .22)),
+      build: () => {
+        tone(82, 0, .25, "square", .22, 62);
+        [262, 330, 392].forEach((note) => tone(note, .12, .42, "triangle", .2));
+      },
+      draw: () => tone(290, 0, .28, "triangle", .28, 720),
+      plague: () => {
+        tone(110, 0, .7, "sawtooth", .28, 48);
+        tone(73, .1, .75, "square", .17, 42);
+      },
+      defense: () => {
+        tone(220, 0, .35, "sine", .25, 880);
+        tone(660, .18, .45, "triangle", .25, 990);
+      },
+      win: () => [262, 330, 392, 523, 659].forEach((note, index) => tone(note, index * .1, .55, "triangle", .28)),
+      lose: () => [330, 277, 220, 165].forEach((note, index) => tone(note, index * .12, .4, "sawtooth", .16, note * .82)),
+      error: () => {
+        tone(155, 0, .12, "square", .18, 130);
+        tone(130, .12, .14, "square", .16, 105);
+      },
+    };
+    sequences[cue]();
+  }
+
+  function triggerFieldEffect(index: number, kind: FieldEffect["kind"]) {
+    setFieldEffect({ index, kind, id: Date.now() });
+  }
+
+  function triggerScreenEffect(kind: ScreenEffect["kind"]) {
+    setScreenEffect({ kind, id: Date.now() });
+  }
 
   function tiltCard(event: ReactPointerEvent<HTMLElement>) {
     if (event.pointerType === "touch") return;
@@ -541,6 +654,18 @@ export default function Home() {
     const timer = window.setTimeout(() => setCardAnimation(null), 1050);
     return () => window.clearTimeout(timer);
   }, [cardAnimation]);
+
+  useEffect(() => {
+    if (!fieldEffect) return;
+    const timer = window.setTimeout(() => setFieldEffect(null), 850);
+    return () => window.clearTimeout(timer);
+  }, [fieldEffect]);
+
+  useEffect(() => {
+    if (!screenEffect) return;
+    const timer = window.setTimeout(() => setScreenEffect(null), 1150);
+    return () => window.clearTimeout(timer);
+  }, [screenEffect]);
 
   useEffect(() => {
     function handleKeyboard(event: KeyboardEvent) {
@@ -602,6 +727,7 @@ export default function Home() {
     newGame.log[0] = `Partida ${mode} preparada para ${players} ${
       players === 1 ? "jugador" : "jugadores"
     }.`;
+    playSound("start");
     setGame(newGame);
   }
 
@@ -611,6 +737,8 @@ export default function Home() {
     if (objectiveComplete(next)) {
       next.status = "won";
       next.log.unshift("¡Objetivo completado! La cosecha está a salvo.");
+      playSound("win");
+      triggerScreenEffect("win");
       setGame(next);
       return;
     }
@@ -624,9 +752,13 @@ export default function Home() {
         next.pendingPlague = plague;
         next.lastPlague = plague;
         next.log.unshift(`Se revela: ${plague}.`);
+        playSound("plague");
+        triggerScreenEffect("plague");
       } else {
         next.status = "lost";
         next.log.unshift("El mazo de Plagas se agotó antes de completar el objetivo.");
+        playSound("lose");
+        triggerScreenEffect("lose");
       }
     }
     setGame(next);
@@ -638,6 +770,7 @@ export default function Home() {
     const plot = next.field[index];
 
     if (!plotIsActionableFor(plot, action)) {
+      playSound("error");
       setToast(plotActionReason(plot, action));
       return;
     }
@@ -652,6 +785,8 @@ export default function Home() {
       plot.plant = next.plantDeck.shift();
       plot.water = 0;
       plot.required = 1;
+      playSound("plant");
+      triggerFieldEffect(index, "plant");
       concludeAction(next, `Jugador ${game.activePlayer + 1} plantó en el terreno ${index + 1}.`);
       return;
     }
@@ -681,6 +816,8 @@ export default function Home() {
         }
       }
       plot.water = Math.min(plot.required, plot.water + 1);
+      playSound("water");
+      triggerFieldEffect(index, "water");
       concludeAction(next, `Jugador ${game.activePlayer + 1} regó el terreno ${index + 1}.`);
       return;
     }
@@ -696,6 +833,9 @@ export default function Home() {
       }
       next.harvest[crop] += 1;
       next.field[index] = { ...plot, plant: undefined, water: 0, required: 1, crow: false };
+      playSound("harvest");
+      triggerFieldEffect(index, "harvest");
+      triggerScreenEffect("harvest");
       concludeAction(next, `Jugador ${game.activePlayer + 1} cosechó ${crop}.`);
       return;
     }
@@ -703,13 +843,19 @@ export default function Home() {
     if (action === "resolver") {
       if (plot.crow) {
         plot.crow = false;
+        playSound("repair");
+        triggerFieldEffect(index, "repair");
         concludeAction(next, `Jugador ${game.activePlayer + 1} espantó los cuervos del terreno ${index + 1}.`);
       } else if (plot.drought > 0) {
         plot.drought -= 1;
+        playSound("repair");
+        triggerFieldEffect(index, "repair");
         concludeAction(next, `Jugador ${game.activePlayer + 1} retiró una ficha de Sequía.`);
       } else if (plot.damaged) {
         const repaired = Math.random() >= 0.5;
         if (repaired) plot.damaged = false;
+        playSound(repaired ? "repair" : "error");
+        triggerFieldEffect(index, "repair");
         concludeAction(
           next,
           repaired
@@ -827,6 +973,8 @@ export default function Home() {
 
   function finishCard(next: Game, card: ResourceCard, source: CardSource, result: string) {
     showCardMotion(card, card.kind === "construcción" ? "build" : "play");
+    playSound(card.kind === "construcción" ? "build" : "card");
+    triggerScreenEffect("card");
     consumeCard(next, card, source);
     setToast(result);
     concludeAction(
@@ -1175,6 +1323,8 @@ export default function Home() {
     const old = next.hands[next.activePlayer][exchangeIndex];
     const chosen = next.market[index];
     showCardMotion(chosen, "draw");
+    playSound("draw");
+    triggerScreenEffect("card");
     next.hands[next.activePlayer][exchangeIndex] = chosen;
     next.market.splice(index, 1);
     next.resourceDiscard.push(old);
@@ -1198,6 +1348,8 @@ export default function Home() {
     }
     next.resourceDiscard.push(used);
     showCardMotion(used, "defense");
+    playSound("defense");
+    triggerScreenEffect("card");
     next.log.unshift(`${used.name} canceló completamente ${next.pendingPlague}.`);
     setToast(`${used.name} se activó y canceló ${next.pendingPlague}.`);
     next.pendingPlague = undefined;
@@ -1230,6 +1382,8 @@ export default function Home() {
   function resolvePlague() {
     if (!game?.pendingPlague || decision) return;
     const revealed = game.pendingPlague;
+    playSound("plague");
+    triggerScreenEffect("plague");
     if (revealed === "Conejos") {
       const roll = Math.floor(Math.random() * 6) + 1;
       const candidates = game.field
@@ -1536,7 +1690,7 @@ export default function Home() {
   );
 
   return (
-    <main className="game-shell">
+    <main className={`game-shell${screenEffect ? ` fx-${screenEffect.kind}` : ""}`}>
       <header className="topbar">
         <button className="brand" onClick={() => setGame(null)} aria-label="Volver al inicio">
           <span><b>MALDITA</b> COSECHA</span>
@@ -1566,7 +1720,21 @@ export default function Home() {
         </div>
         <div className="top-actions">
           <span className="season-stat"><small>PLAGAS</small><b>{remainingPlagues}</b></span>
-          <button className="icon-button" onClick={() => setShowRules(true)}>？ Guía</button>
+          <button
+            className="icon-button sound-button"
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              if (next) playSound("tap", true);
+            }}
+            aria-label={soundEnabled ? "Silenciar sonidos" : "Activar sonidos"}
+            aria-pressed={soundEnabled}
+            title={soundEnabled ? "Silenciar sonidos" : "Activar sonidos"}
+          >
+            <span aria-hidden="true">{soundEnabled ? "🔊" : "🔇"}</span>
+            <b>{soundEnabled ? "Sonido" : "Silencio"}</b>
+          </button>
+          <button className="icon-button" onClick={() => { playSound("tap"); setShowRules(true); }}>？ Guía</button>
         </div>
       </header>
 
@@ -1696,6 +1864,11 @@ export default function Home() {
                 {plot.blocked && <span className="obstacle">🐜</span>}
                 {plot.damaged && <span className="obstacle">⚡ DAÑADO</span>}
                 {plotIsActionable(plot) && <span className="plot-cta">{ACTION_LABELS[action]}</span>}
+                {fieldEffect?.index === index && (
+                  <span className={`field-fx ${fieldEffect.kind}`} key={fieldEffect.id} aria-hidden="true">
+                    <i /><i /><i /><i /><i /><i />
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -1708,6 +1881,7 @@ export default function Home() {
                   actionTargets[key] === 0 ? "no-targets" : "",
                 ].join(" ")}
                 onClick={() => {
+                  playSound("tap");
                   setAction(key);
                   if (actionTargets[key] === 0) {
                     setToast(`Ahora mismo no hay terrenos disponibles para ${ACTION_LABELS[key].toLowerCase()}.`);
@@ -1863,7 +2037,10 @@ export default function Home() {
           <button
             className={mobileView === view ? "active" : ""}
             aria-current={mobileView === view ? "page" : undefined}
-            onClick={() => setMobileView(view)}
+            onClick={() => {
+              playSound("tap");
+              setMobileView(view);
+            }}
             key={view}
           >
             <b>{icon}</b>
