@@ -2215,7 +2215,7 @@ export default function Home() {
           <section className="plague-modal">
             <div className="plague-warning">PLAGA REVELADA</div>
             <img src={PLAGUE_INFO[game.pendingPlague].image} alt="" />
-            <div>
+            <div className="plague-copy">
               <h2>{game.pendingPlague}</h2>
               <p>{PLAGUE_INFO[game.pendingPlague].text}</p>
               {defenseOptions.length ? (
