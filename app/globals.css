@@ -52,7 +52,7 @@ button:focus-visible {
   padding: 60px;
   background:
     linear-gradient(rgba(19, 51, 31, 0.72), rgba(12, 33, 21, 0.94)),
-    url("/cards/Campo de juego/campo.jpg") center / cover;
+    var(--field-background) center / cover;
 }
 
 .setup::before {
@@ -1152,7 +1152,7 @@ body {
   grid-template-rows: 64px minmax(0, 1fr);
   background:
     linear-gradient(rgba(18, 36, 23, .78), rgba(18, 30, 20, .9)),
-    url("/cards/Campo de juego/campo.jpg") center / cover;
+    var(--field-background) center / cover;
 }
 
 .topbar {
@@ -2639,7 +2639,7 @@ body {
     padding: 0;
     background:
       linear-gradient(rgba(12,31,19,.76), rgba(10,23,15,.92)),
-      url("/cards/Campo de juego/campo.jpg") center / cover;
+      var(--field-background) center / cover;
   }
 
   .topbar {
@@ -3264,7 +3264,7 @@ body {
     color: #f7e6aa;
     background:
       linear-gradient(rgba(12,35,20,.9), rgba(12,35,20,.96)),
-      url("/og-v2.png") center / cover;
+      var(--og-background) center / cover;
     text-align: center;
     font-size: clamp(24px, 8vw, 44px);
     font-weight: 950;
@@ -3401,7 +3401,7 @@ body {
   color: #26372b;
   background:
     linear-gradient(rgba(255,250,234,.97), rgba(245,235,204,.98)),
-    url("/cards/Campo de juego/campo.jpg") center / cover;
+    var(--field-background) center / cover;
   border: 3px solid #e4c967;
   box-shadow: 0 22px 70px rgba(0,0,0,.55);
   animation: modal-enter .2s ease-out;

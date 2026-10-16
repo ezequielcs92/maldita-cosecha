@@ -8,11 +8,12 @@ interface InstallPromptEvent extends Event {
 }
 
 export default function PwaRegister() {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
+      navigator.serviceWorker.register(`${basePath}/sw.js`, { scope: `${basePath}/` }).catch(() => {
         // La partida funciona igualmente si el navegador bloquea el registro.
       });
     }

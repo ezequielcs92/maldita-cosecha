@@ -166,64 +166,67 @@ const CROPS: Crop[] = [
   "Maní",
 ];
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const assetPath = (path: string) => `${BASE_PATH}${path}`;
+
 const CROP_IMAGES: Record<Crop, string> = {
-  Papa: "/cards/papa.png",
-  Zanahoria: "/cards/zanahoria.png",
-  Cebolla: "/cards/cebolla.png",
-  Trufa: "/cards/trufas.png",
-  Batata: "/cards/batata.png",
-  Jengibre: "/cards/jengibre.png",
-  Remolacha: "/cards/remolacha.png",
-  Maní: "/cards/mani.png",
+  Papa: assetPath("/cards/papa.png"),
+  Zanahoria: assetPath("/cards/zanahoria.png"),
+  Cebolla: assetPath("/cards/cebolla.png"),
+  Trufa: assetPath("/cards/trufas.png"),
+  Batata: assetPath("/cards/batata.png"),
+  Jengibre: assetPath("/cards/jengibre.png"),
+  Remolacha: assetPath("/cards/remolacha.png"),
+  Maní: assetPath("/cards/mani.png"),
 };
 
 const PLAGUE_INFO: Record<string, { image: string; text: string }> = {
   Tornado: {
-    image: "/cards/tornado.jpg",
+    image: assetPath("/cards/tornado.jpg"),
     text: "Arrasa todas las plantas y la cosecha sin proteger.",
   },
   Terremoto: {
-    image: "/cards/terremoto.webp",
+    image: assetPath("/cards/terremoto.webp"),
     text: "Daña un terreno. Repararlo requiere una acción y una tirada par.",
   },
   Cuervos: {
-    image: "/cards/cuervos.jpg",
+    image: assetPath("/cards/cuervos.jpg"),
     text: "Coloca cuervos sobre todas las plantas.",
   },
   Conejos: {
-    image: "/cards/conejo.jpg",
+    image: assetPath("/cards/conejo.jpg"),
     text: "El dado determina cuántas plantas son eliminadas.",
   },
   Hormigas: {
-    image: "/cards/hormigas.webp",
+    image: assetPath("/cards/hormigas.webp"),
     text: "Bloquean terrenos vacíos durante el próximo ciclo.",
   },
   Saltamontes: {
-    image: "/cards/saltamontes.jpg",
+    image: assetPath("/cards/saltamontes.jpg"),
     text: "Retiran el agua y secan las plantas que no estaban regadas.",
   },
   Helada: {
-    image: "/cards/helada.jpg",
+    image: assetPath("/cards/helada.jpg"),
     text: "Descarta todas las plantas que tengan agua.",
   },
   Insectos: {
-    image: "/cards/insectos.jpg",
+    image: assetPath("/cards/insectos.jpg"),
     text: "Atacan la columna con más plantaciones.",
   },
   "Vecinos invasores": {
-    image: "/cards/vecinos.jpg",
+    image: assetPath("/cards/vecinos.jpg"),
     text: "Roban un cultivo de la cosecha compartida.",
   },
   Gusanos: {
-    image: "/cards/gusanos.jpg",
+    image: assetPath("/cards/gusanos.jpg"),
     text: "Atacan la fila con más plantaciones.",
   },
   Sequía: {
-    image: "/cards/sequia.jpg",
+    image: assetPath("/cards/sequia.jpg"),
     text: "Retira el agua y bloquea con sequía todos los terrenos vacíos.",
   },
   Maleza: {
-    image: "/cards/maleza.jpg",
+    image: assetPath("/cards/maleza.jpg"),
     text: "Durante el siguiente ciclo no se puede regar ni cosechar.",
   },
 };
@@ -232,101 +235,101 @@ const RESOURCE_CARDS: ResourceCard[] = [
   {
     name: "Danza de la Lluvia",
     kind: "defensa",
-    image: "/cards/danza.jpeg",
+    image: assetPath("/cards/danza.jpeg"),
     counters: "Sequía",
     description: "Cancela una Sequía.",
   },
   {
     name: "Fumigación",
     kind: "defensa",
-    image: "/cards/fumigacion.jpg",
+    image: assetPath("/cards/fumigacion.jpg"),
     counters: "Saltamontes",
     description: "Cancela a los Saltamontes.",
   },
   {
     name: "Agua Hirviendo",
     kind: "defensa",
-    image: "/cards/agua.jpg",
+    image: assetPath("/cards/agua.jpg"),
     counters: "Hormigas",
     description: "Cancela a las Hormigas.",
   },
   {
     name: "Insecticida",
     kind: "defensa",
-    image: "/cards/insecticida.jpg",
+    image: assetPath("/cards/insecticida.jpg"),
     counters: "Insectos",
     description: "Cancela a los Insectos.",
   },
   {
     name: "Espantapájaros",
     kind: "defensa",
-    image: "/cards/espantapajaros.jpg",
+    image: assetPath("/cards/espantapajaros.jpg"),
     counters: "Cuervos",
     description: "Cancela a los Cuervos.",
   },
   {
     name: "Escopeta",
     kind: "defensa",
-    image: "/cards/escopeta.jpg",
+    image: assetPath("/cards/escopeta.jpg"),
     counters: "Vecinos invasores",
     description: "Cancela a los Vecinos invasores.",
   },
   {
     name: "Bota Pesada",
     kind: "defensa",
-    image: "/cards/bota pesada.jpg",
+    image: assetPath("/cards/bota pesada.jpg"),
     counters: "Gusanos",
     description: "Cancela a los Gusanos.",
   },
   {
     name: "Lobo Feroz",
     kind: "defensa",
-    image: "/cards/lobo.jpg",
+    image: assetPath("/cards/lobo.jpg"),
     counters: "Conejos",
     description: "Cancela a los Conejos.",
   },
   {
     name: "Poda",
     kind: "defensa",
-    image: "/cards/PODA.jpg",
+    image: assetPath("/cards/PODA.jpg"),
     counters: "Maleza",
     description: "Cancela la Maleza.",
   },
   {
     name: "Bufanda para Plantas",
     kind: "defensa",
-    image: "/cards/BUFANDA.jpg",
+    image: assetPath("/cards/BUFANDA.jpg"),
     counters: "Helada",
     description: "Cancela una Helada.",
   },
   {
     name: "Cosecha Mágica",
     kind: "inmediata",
-    image: "/cards/cosecha.jpg",
+    image: assetPath("/cards/cosecha.jpg"),
     description: "Cosecha todas las plantas, tengan agua o no.",
   },
   {
     name: "Metamorfosis",
     kind: "inmediata",
-    image: "/cards/metamorfosis.jpg",
+    image: assetPath("/cards/metamorfosis.jpg"),
     description: "Convierte hasta 3 cultivos en el cultivo más necesario.",
   },
   {
     name: "Tractor",
     kind: "inmediata",
-    image: "/cards/tractor.jpg",
+    image: assetPath("/cards/tractor.jpg"),
     description: "Planta todos los terrenos libres de una fila.",
   },
   {
     name: "Lluvia",
     kind: "inmediata",
-    image: "/cards/lluvia.jpg",
+    image: assetPath("/cards/lluvia.jpg"),
     description: "Retira la sequía y riega todas las plantas.",
   },
   {
     name: "Pronóstico Meteorológico",
     kind: "inmediata",
-    image: "/cards/pronostico_meteorologico.png",
+    image: assetPath("/cards/pronostico_meteorologico.png"),
     description: "Revela las próximas 3 plagas y aleja primero las más severas.",
   },
   ...[
@@ -345,7 +348,7 @@ const RESOURCE_CARDS: ResourceCard[] = [
     ([name, image, description]): ResourceCard => ({
       name,
       kind: "construcción",
-      image: `/cards/${image}`,
+      image: assetPath(`/cards/${image}`),
       description,
     }),
   ),
@@ -724,6 +727,7 @@ export default function Home() {
 
   function begin() {
     const newGame = startGame(players, mode);
+    setMobileView("field");
     newGame.log[0] = `Partida ${mode} preparada para ${players} ${
       players === 1 ? "jugador" : "jugadores"
     }.`;
@@ -972,6 +976,7 @@ export default function Home() {
   }
 
   function finishCard(next: Game, card: ResourceCard, source: CardSource, result: string) {
+    setMobileView("field");
     showCardMotion(card, card.kind === "construcción" ? "build" : "play");
     playSound(card.kind === "construcción" ? "build" : "card");
     triggerScreenEffect("card");
@@ -1330,6 +1335,7 @@ export default function Home() {
     next.resourceDiscard.push(old);
     fillMarket(next);
     setExchangeIndex(null);
+    setMobileView("cards");
     concludeAction(next, `Jugador ${game.activePlayer + 1} cambió un Recurso.`);
   }
 
@@ -1645,9 +1651,9 @@ export default function Home() {
             <label>
               Jugadores
               <div className="stepper">
-                <button onClick={() => setPlayers(Math.max(1, players - 1))} aria-label="Menos jugadores">−</button>
+                <button disabled={players === 1} onClick={() => setPlayers(Math.max(1, players - 1))} aria-label="Menos jugadores">−</button>
                 <strong>{players}</strong>
-                <button onClick={() => setPlayers(Math.min(4, players + 1))} aria-label="Más jugadores">+</button>
+                <button disabled={players === 4} onClick={() => setPlayers(Math.min(4, players + 1))} aria-label="Más jugadores">+</button>
               </div>
             </label>
             <label>
@@ -1679,6 +1685,8 @@ export default function Home() {
 
   const currentHand = game.hands[game.activePlayer];
   const remainingPlagues = game.plagueDeck.length + (game.pendingPlague ? 1 : 0);
+  const objectiveTotal = Object.values(game.objective).reduce((sum, amount) => sum + amount, 0);
+  const objectiveProgress = CROPS.reduce((sum, crop) => sum + Math.min(totalCrop(game, crop), game.objective[crop]), 0);
   const actionTargets = (Object.keys(ACTION_LABELS) as Action[]).reduce(
     (counts, candidate) => {
       counts[candidate] = game.field.filter((plot) =>
@@ -1696,7 +1704,7 @@ export default function Home() {
           <span><b>MALDITA</b> COSECHA</span>
           <small>PROTOTIPO DIGITAL</small>
         </button>
-        <div className="turn-pill">
+        <div className="turn-pill" key={`turn-${game.actions}`} aria-label={`Turno del jugador ${game.activePlayer + 1}`}>
           <span className="player-avatar">{game.activePlayer + 1}</span>
           <div>
             <small>TURNO ACTUAL</small>
@@ -1739,6 +1747,13 @@ export default function Home() {
       </header>
 
       <section className={`dashboard mobile-${mobileView}`}>
+        <div className="mobile-match-summary">
+          <span>JUGADOR {game.activePlayer + 1}<b>{4 - game.cycle} {4 - game.cycle === 1 ? "turno para la plaga" : "turnos para la plaga"}</b></span>
+          <button onClick={() => setMobileView("status")} aria-label={`Objetivo: ${objectiveProgress} de ${objectiveTotal}. Ver estado`}>
+            <span>COSECHA <b>{objectiveProgress}/{objectiveTotal}</b></span>
+            <progress value={objectiveProgress} max={objectiveTotal} />
+          </button>
+        </div>
         <aside className="left-panel">
           <section className="panel objective-panel">
             <div className="panel-heading">
@@ -1910,6 +1925,7 @@ export default function Home() {
         <aside className="right-panel">
           <section className="panel market-panel">
             <div className="panel-heading"><span>MERCADO</span><b>3 visibles</b></div>
+            <p className="card-section-help">{exchangeIndex !== null ? "Elegí tu nuevo recurso. El cambio consume una acción." : "Explorá los recursos. Para tomar uno, cambiá una carta de tu mano."}</p>
             <div className={exchangeIndex !== null ? "market exchange-active" : "market"}>
               {game.market.map((card, index) => (
                 <button
@@ -1923,6 +1939,7 @@ export default function Home() {
                   <img src={card.image} alt="" />
                   <span>{card.name}</span>
                   <small>{card.kind}</small>
+                  <p className="market-description">{card.description}</p>
                 </button>
               ))}
             </div>
@@ -1953,7 +1970,8 @@ export default function Home() {
               )}
               <b>{currentHand.length}</b>
             </div>
-            <div className="hand">
+            <p className="card-section-help hand-help">Tocá una carta para leer su efecto y elegir qué hacer.</p>
+            <div className="hand" key={`hand-${game.activePlayer}-${game.actions}`}>
               {currentHand.map((card, index) => {
                 const availability = cardAvailability(card);
                 return (
@@ -2149,6 +2167,7 @@ export default function Home() {
                     <button
                       onClick={() => {
                         setExchangeIndex(index!);
+                        setMobileView("market");
                         setCardPreview(null);
                         setToast("Ahora elegí una carta del Mercado.");
                       }}

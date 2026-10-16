@@ -1,8 +1,10 @@
-const CACHE_NAME = "maldita-cosecha-v1";
+const CACHE_NAME = "maldita-cosecha-v2";
+const SCOPE_URL = new URL(self.registration.scope);
+const scopedPath = (path) => new URL(path.replace(/^\//, ""), SCOPE_URL).pathname;
 const APP_ASSETS = [
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/marcador-plagas.png",
+  scopedPath("icons/icon-192.png"),
+  scopedPath("icons/icon-512.png"),
+  scopedPath("marcador-plagas.png"),
 ];
 
 self.addEventListener("install", (event) => {
@@ -37,15 +39,15 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(async () => (await caches.match(request)) || (await caches.match("/"))),
+        .catch(async () => (await caches.match(request)) || (await caches.match(scopedPath("")))),
     );
     return;
   }
 
   if (
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/cards/") ||
-    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith(scopedPath("_next/static/")) ||
+    url.pathname.startsWith(scopedPath("cards/")) ||
+    url.pathname.startsWith(scopedPath("icons/")) ||
     /\.(?:png|jpg|jpeg|webp|gif|woff2?)$/i.test(url.pathname)
   ) {
     event.respondWith(

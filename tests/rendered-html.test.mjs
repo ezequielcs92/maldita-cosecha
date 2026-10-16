@@ -52,10 +52,10 @@ test("keeps mobile navigation and PWA support in the production source", async (
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /\.dashboard\.mobile-field \.field-zone/);
   assert.match(css, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(layout, /manifest:\s*"\/manifest\.webmanifest"/);
+  assert.match(layout, /manifest:\s*`\$\{basePath\}\/manifest\.webmanifest`/);
   assert.match(layout, /<PwaRegister \/>/);
   assert.match(manifest, /display:\s*"standalone"/);
   assert.match(manifest, /icon-512\.png/);
-  assert.match(register, /navigator\.serviceWorker\.register\("\/sw\.js"\)/);
+  assert.match(register, /navigator\.serviceWorker\.register\(`\$\{basePath\}\/sw\.js`,/);
   assert.match(serviceWorker, /self\.addEventListener\("fetch"/);
 });

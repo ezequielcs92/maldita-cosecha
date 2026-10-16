@@ -1,8 +1,15 @@
+import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { headers } from "next/headers";
 import PwaRegister from "./pwa-register";
 import "./globals.css";
+import "./game-polish.css";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const siteOrigin =
+  process.env.NEXT_PUBLIC_SITE_ORIGIN ??
+  "https://maldita-cosecha-digital.mcontreras16.chatgpt.site";
+const siteUrl = `${siteOrigin}${basePath}`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,32 +28,22 @@ export const viewport: Viewport = {
   themeColor: "#183b25",
 };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host =
-    requestHeaders.get("x-forwarded-host") ||
-    requestHeaders.get("host") ||
-    "localhost:3001";
-  const protocol =
-    requestHeaders.get("x-forwarded-proto") ||
-    (host.includes("localhost") ? "http" : "https");
-  const origin = `${protocol}://${host}`;
-  const description =
-    "Adaptación cooperativa digital del juego de mesa Maldita Cosecha, de Ukelele Games.";
+const description =
+  "Adaptación cooperativa digital del juego de mesa Maldita Cosecha, de Ukelele Games.";
 
-  return {
+export const metadata: Metadata = {
     title: "Maldita Cosecha Digital",
     description,
-    manifest: "/manifest.webmanifest",
+    manifest: `${basePath}/manifest.webmanifest`,
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
       title: "Maldita Cosecha",
     },
     icons: {
-      icon: "/marcador-plagas.png",
-      shortcut: "/marcador-plagas.png",
-      apple: "/icons/apple-touch-icon.png",
+      icon: `${basePath}/marcador-plagas.png`,
+      shortcut: `${basePath}/marcador-plagas.png`,
+      apple: `${basePath}/icons/apple-touch-icon.png`,
     },
     openGraph: {
       title: "Maldita Cosecha Digital",
@@ -54,7 +51,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [
         {
-          url: new URL("/og-v2.png", origin).toString(),
+          url: `${siteUrl}/og-v2.png`,
           width: 1536,
           height: 1024,
           alt: "Maldita Cosecha Digital",
@@ -65,17 +62,22 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Maldita Cosecha Digital",
       description,
-      images: [new URL("/og-v2.png", origin).toString()],
+      images: [`${siteUrl}/og-v2.png`],
     },
   };
-}
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable}`}
+        style={{
+          "--field-background": `url("${basePath}/cards/Campo de juego/campo.jpg")`,
+          "--og-background": `url("${basePath}/og-v2.png")`,
+        } as CSSProperties}
+      >
         {children}
         <PwaRegister />
       </body>
